@@ -539,6 +539,8 @@ public class FL516CPU {
 		printMemory(true);
 	}
 	
+	// test
+	
 	private static void printRegisters(boolean hex) {
 		System.out.println("\n[CPU | DUMP] CPU Registers (RAX = 00, RBX = 01, ...)");
 		System.out.print("|");
