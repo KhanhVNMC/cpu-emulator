@@ -1,8 +1,8 @@
 package cpu.test;
 
-public class FL316CPU {
+public class FL516CPU {
 	/** opcode labels **/
-	// data controls
+	/* data controls */
 	public static final int MOV  = 0x01; // move from registers to registers
 	public static final int LDI  = 0x02; // load immediate (load a value to reg)
 	public static final int LDM  = 0x03; // load a value from memory to reg
@@ -41,7 +41,12 @@ public class FL316CPU {
 	// BITWISE NOT (flip flop)
 	public static final int NOT  = 0x19;
 	
-	// flow controls
+	/* stack operations */
+	public static final int PUSH = 0x1A;
+	public static final int IPUSH = 0x1B; // PUSH immediate
+	public static final int POP  = 0x1C;
+	
+	/* flow controls */
 	public static final int NOP  = 0x00; // NONE instruction
 	public static final int HLT  = 0xF0; // HALT the CPU
 	public static final int JMP  = 0xF1; // JUMP to an address
@@ -79,32 +84,30 @@ public class FL316CPU {
 	
 	static boolean paused = false;
 	static char[] ROM = {
-			LDI, 00,00, 0x00,0x0A,  // (0x0000) RAX = 10 (loop counter)
-		//LOOP: 0x05
-			SUBI, 00,00, 0x00,0x01,  // RAX -= 1
-			ADI, 00,01, 00,01,
-			ADI, 00,02, 00,01,
-			CMP,  00,00, 00,05,
-			IFEQ, 00,35, 00, 00,
-			JMP,  00,05, 00, 00,
-		//END:35
-			HLT, 00,00, 00,00
-		};
+		IPUSH, 0XCA,0xFE, 0xCA,0xFE,
+		POP,00,00,00,00,
+		POP,00,00,00,00,
+		HLT,00,00,00,00
+	};
 	
 	public static void main(String[] args) throws InterruptedException {
+		// INIT stack to 65536
+		REGS[STACK_PTR] = (char) STACK_REGION;
+		
 		copy_rom_to_ram();
 		cpu_loop: while (true) {
 			
 			if (paused) continue;
 			
 			// fetch instructions (5 bytes)
-			int opcode = MEMORY[PROGRAM_COUNTER++] & 0xFF; // prevent sign extension
-			// merge two bytes into one 16-bit operand
+			int opcode  = MEMORY[PROGRAM_COUNTER++] & 0xFF; // prevent sign extension
+			// merge two consecutive bytes into one 16-bit operand
 			// example: CA, FE
 			// 1) CA << 8 => CA00  (CA left by 8 bits, pad 8 bits to the right)
-			// 2) CA00 | FE => CAFE  (OR merges)
-			char opr1   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | MEMORY[PROGRAM_COUNTER++]);
-			char opr2   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | MEMORY[PROGRAM_COUNTER++]);
+			// 2) CA00 | (FE & 0xFF) => CAFE (OR merges) [0xFF to prevent sign extension, only get the 2 bytes)
+			char opr1   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | (MEMORY[PROGRAM_COUNTER++] & 0xFF));
+			char opr2   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | (MEMORY[PROGRAM_COUNTER++] & 0xFF));
+			
 			System.out.println("[CPU | PC=" + PROGRAM_COUNTER +"] OPCODE: " + String.format("%02X", (int)opcode) 
 				+ " OPERANDS: " + String.format("%04X", (int)opr1) 
 				+ ", " + String.format("%04X", (int)opr2) 
@@ -139,7 +142,7 @@ public class FL316CPU {
 			// jump to an address in the program instructions space
 			if (opcode == JMP) {
 				if (opr1 % 5 != 0) {
-					System.err.println("[CPU | JMP WARN] Jump location is not multiple of 3. Undefined behaviour may happen!");
+					System.err.println("[CPU | JMP WARN] Jump location is not multiple of 5. Undefined behaviour may happen!");
 				}
 				PROGRAM_COUNTER = opr1;
 				continue;
@@ -346,6 +349,42 @@ public class FL316CPU {
 				continue;
 			}
 			
+			/**** STACK OPERATIONS ****/
+			// PUSH  REGISTER_INDEX
+			// IPUSH IMMEDIATE_VALUE
+			// push a value to the stack (decrementing the stack pointer)
+			if (opcode == PUSH || opcode == IPUSH) {
+				// example
+				// 00 00 00
+				//       ^^ begins here
+				char value16 = (opcode == IPUSH ? opr1 : REGS[opr1]);
+				// the operation below writes to it
+				// 00 00 FF
+				//    ^^ written the low byte and move the pointer to the left (-1)
+				MEMORY[REGS[STACK_PTR]--]   = (byte) (value16 & 0xFF); // low byte
+				
+				// the operation below writes to it
+				// 00 FF FF
+				// ^^ written the HIGH byte and move the pointer to the left, ready for the next one
+				MEMORY[REGS[STACK_PTR]--]   = (byte) (value16 >> 8); // high byte
+				continue;
+			}
+			
+			// POP REGISTER_INDEX
+			// POP from the stack to register index (incrementing the stack pointer)
+			if (opcode == POP) {
+				if (REGS[STACK_PTR] > STACK_REGION - 2) {
+					System.err.println("Stack underflow!");
+				}
+				// for example, we have this stack with ONE 2-bytes element
+				// 00 CA FE
+				// ^ current RSP is at "0"
+				// this increments by 1 and get CA, increment by one again and get FE, and then assign to the register
+				// after "POP", RSP is now at 2, which is the bottom of the stack
+				REGS[opr1] = (char) ((MEMORY[++REGS[STACK_PTR]] << 8) | (MEMORY[++REGS[STACK_PTR]] & 0xFF));
+				continue;
+			}
+			
 			System.err.printf("[CPU | FAULT] Unknown OPCODE: %02X\n", (int) opcode);
 			break;
 		}
@@ -376,8 +415,18 @@ public class FL316CPU {
 	
 	@SuppressWarnings("resource")
 	private static void printMemory(boolean hex) {
-		System.out.println("First 512 bytes of the program");
-		for (int i = 0; i < 512; i++) {
+		System.out.println("First 128 bytes of the program");
+		for (int i = 0; i < 128; i++) {
+			if (i % 16 == 0) System.out.println();
+			
+			boolean is_program = i < ROM.length;
+			var std = is_program ? System.err : System.out;
+			
+			std.printf(hex ? "%02X " : "%06d ", MEMORY[i]);
+		}
+		System.out.println();
+		System.out.println("Last 128 bytes of the program");
+		for (int i = MEMORY.length - 128; i < MEMORY.length; i++) {
 			if (i % 16 == 0) System.out.println();
 			
 			boolean is_program = i < ROM.length;
