@@ -373,8 +373,15 @@ public class FL516CPU {
 			// POP REGISTER_INDEX
 			// POP from the stack to register index (incrementing the stack pointer)
 			if (opcode == POP) {
-				if (REGS[STACK_PTR] > STACK_REGION - 2) {
-					System.err.println("Stack underflow!");
+				// the minimum size of the stack (that is still pop-able) is 2 bytes, hence
+				// we check that the stack pointer is at least 2 bytes away from the bottom of the stack region.
+				// if the stack pointer exceeds the minimum valid address (i.e., STACK_REGION - 2), warn
+				// 00 00 00 CA FE
+				//       ^^ the pointer must be at least HERE to be able to pop
+				if (REGS[STACK_PTR] + 2 > STACK_REGION) {
+					// display a warning message if the stack pointer is too high, which could lead to an underflow condition when popping
+					System.err.println("Stack underflow! instruction not fulfilled");
+					continue;
 				}
 				// for example, we have this stack with ONE 2-bytes element
 				// 00 CA FE
