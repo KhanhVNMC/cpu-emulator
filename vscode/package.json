@@ -1,0 +1,26 @@
+{
+    "name": "fl516-asm-syntax",
+    "displayName": "FL516 Assembly",
+    "description": "VSCode syntax highlighting for the FL516 Microarchitecture Conventional Assembler",
+    "version": "0.1.0",
+    "publisher": "GiaKhanhVN",
+    "engines": { "vscode": "^1.80.0" },
+    "categories": ["Programming Languages"],
+    "contributes": {
+        "languages": [
+            {
+                "id": "fl516",
+                "aliases": ["FL516 Assembly", "fl516"],
+                "extensions": [".asm", ".fl1516", ".f16asm"],
+                "configuration": "./fl516-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "fl516",
+                "scopeName": "source.fl516",
+                "path": "./syntaxes/fl516.tmLanguage.json"
+            }
+        ]
+    }
+}

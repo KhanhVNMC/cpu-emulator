@@ -1,0 +1,28 @@
+{
+    "scopeName": "source.fl516",
+    "patterns": [
+        {
+            "name": "keyword.control.fl516",
+            "match": "\\b(MOV|LDI|LDM|STO|STOI|ADD|ADI|SUB|SUBI|MUL|MULI|DIV|DIVI|OR|ORI|XOR|XORI|SHR|SHRI|SHL|SHLI|NOT|PUSH|IPUSH|POP|HLT|JMP|CMP|IFEQ|IFLT|IFGT|NOP|DBGP|BLNK)\\b"
+        },
+        {
+            "name": "variable.register.fl516",
+            "match": "\\b(R[0-7]|SP|MD)\\b"
+        },
+        {
+            "name": "constant.numeric.fl516",
+            "match": "\\b(0x[0-9A-Fa-f]+|0b[01]+|\\d+)\\b"
+        },
+        {
+            "name": "entity.name.function.fl516",
+            "match": "\\.(\\w+)"
+        },
+        {
+            "name": "comment.line.semicolon.fl516",
+            "match": ";.*$",
+            "captures": {
+                "0": { "name": "comment.line.semicolon.fl516" }
+            }
+        }
+    ]
+}

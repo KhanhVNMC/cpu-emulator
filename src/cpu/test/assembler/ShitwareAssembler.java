@@ -1,5 +1,9 @@
 package cpu.test.assembler;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -94,8 +98,8 @@ public class ShitwareAssembler {
      * @throws SyntaxError if syntax is incorrect
      */
 	public static String[] parseLine(String asm) throws SyntaxError {
-		// ignore comments
-		if (asm.trim().startsWith(";")) return new String[0];
+		// ignore comments and blank lines
+		if (asm.isBlank() || asm.trim().startsWith(";")) return new String[0];
 		
 		asm = asm.split(";", 2)[0].trim(); // strip comments
 		
@@ -193,6 +197,7 @@ public class ShitwareAssembler {
 				}
 				// parse the instruction
 				String[]   parsedInstruction = parseLine(line);
+				if (parsedInstruction.length == 0) continue; // ignored
 				Opcode	   opcode			 = OPCODE_INFO.get(parsedInstruction[0]);
 				
 				// invalid opcode provided!
@@ -299,19 +304,30 @@ public class ShitwareAssembler {
 		return "The instruction with opcode '" + opcodeStr + "' expects 2 operands: [" + expected.firstOperandTypeName() + "], [" + expected.secndOperandTypeName() + "]";
 	}
 	
-	public static void main(String... args) throws SyntaxError {
-		String[] asm = {
-			".main",
-			"nop ; hiii",
-			"hlt ; hiii",
-			"no ; hiii",
-			".sex",
-			".a",
-			"jmp .a"
-		};
-		assemble("main.asm", asm);
-		for (byte b : assembledProgram) {
-			System.out.printf("%02X ", (int) b & 0xFF);
-		}
-	}
+	public static void main(String... args) {
+        if (args.length < 1) {
+            System.err.println("Usage: java swasm <input.asm>");
+            System.exit(1);
+        }
+        
+        String inputFile = args[0];
+        String outputFile = inputFile.replaceAll("\\.asm$", ".o");
+        try {
+            // read the .asm file
+            List<String> lines = Files.readAllLines(Paths.get(inputFile));
+            String[] asmLines = lines.toArray(new String[0]);
+
+            // assemble the code
+            assemble(inputFile, asmLines);
+
+            // write to .o15 file
+            try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+                for (byte b : assembledProgram) {
+                    fos.write(b);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("FileError: " + e.getMessage());
+        }
+    }
 }
