@@ -63,7 +63,7 @@ public class FL516CPU {
 	static char[]   REGS = new char[10]; // char = 2bytes = 16-bit registers
 	// special registers (convention)
 	static int      DIV_REMAINDER = 8;
-	static int      STACK_PTR     = 9;
+	static int      STACK_PTR_LOC     = 9; // location in the registers
 	
 	// 16-bit addressable space
 	static byte[]   MEMORY       = new byte[0xFFFF + 1]; // basically 65536 addressable bytes
@@ -84,22 +84,16 @@ public class FL516CPU {
 	};
 	
 	static boolean paused = false;
-   
+
 	static char[] ROM = {
-		    0x02, 0x00, 0x00, 0x00, 0x0A,
-		    0x0A, 0x00, 0x00, 0x00, 0x01,
-		    0x08, 0x00, 0x01, 0x00, 0x01,
-		    0xF2, 0x00, 0x00, 0x00, 0x02,
-		    0xF3, 0x00, 0x1E, 0x00, 0x00,
-		    0xF1, 0x00, 0x05, 0x00, 0x00,
-		    0xF0, 0x00, 0x00, 0x00, 0x00,
-		};
+		HLT
+	};
 
 
 	
 	public static void main(String[] args) throws InterruptedException {
 		// INIT stack to 65536
-		REGS[STACK_PTR] = (char) STACK_REGION;
+		REGS[STACK_PTR_LOC] = (char) STACK_REGION;
 		
 		copy_rom_to_ram();
 		cpu_loop: while (true) {
@@ -370,12 +364,12 @@ public class FL516CPU {
 				// the operation below writes to it
 				// 00 00 FF
 				//    ^^ written the low byte and move the pointer to the left (-1)
-				MEMORY[REGS[STACK_PTR]--]   = (byte) (value16 & 0xFF); // low byte
+				MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 & 0xFF); // low byte
 				
 				// the operation below writes to it
 				// 00 FF FF
 				// ^^ written the HIGH byte and move the pointer to the left, ready for the next one
-				MEMORY[REGS[STACK_PTR]--]   = (byte) (value16 >> 8); // high byte
+				MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 >> 8); // high byte
 				continue;
 			}
 			
@@ -387,7 +381,7 @@ public class FL516CPU {
 				// if the stack pointer exceeds the minimum valid address (i.e., STACK_REGION - 2), warn
 				// 00 00 00 CA FE
 				//       ^^ the pointer must be at least HERE to be able to pop
-				if (REGS[STACK_PTR] + 2 > STACK_REGION) {
+				if (REGS[STACK_PTR_LOC] + 2 > STACK_REGION) {
 					// display a warning message if the stack pointer is too high, which could lead to an underflow condition when popping
 					System.err.println("Stack underflow! instruction not fulfilled");
 					continue;
@@ -397,7 +391,7 @@ public class FL516CPU {
 				// ^ current RSP is at "0"
 				// this increments by 1 and get CA, increment by one again and get FE, and then assign to the register
 				// after "POP", RSP is now at 2, which is the bottom of the stack
-				REGS[opr1] = (char) ((MEMORY[++REGS[STACK_PTR]] << 8) | (MEMORY[++REGS[STACK_PTR]] & 0xFF));
+				REGS[opr1] = (char) ((MEMORY[++REGS[STACK_PTR_LOC]] << 8) | (MEMORY[++REGS[STACK_PTR_LOC]] & 0xFF));
 				continue;
 			}
 			
