@@ -85,8 +85,9 @@ public class FL516CPU {
 	static boolean paused = false;
 	static char[] ROM = {
 		IPUSH, 0XCA,0xFE, 0xCA,0xFE,
+		IPUSH, 0XBA,0xBE, 0xCA,0xFE,
 		POP,00,00,00,00,
-		POP,00,00,00,00,
+		POP,00,01,00,00,
 		HLT,00,00,00,00
 	};
 	
