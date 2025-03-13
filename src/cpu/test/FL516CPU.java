@@ -60,9 +60,9 @@ public class FL516CPU {
 	
 	/* CPU Internal parts (registers & memory & internal flags) */
 	// registers
-	static char[]   REGS = new char[10]; // char = 2bytes = 16-bit registers
+	static char[]   REGS = new char[10]; public // char = 2bytes = 16-bit registers
 	// special registers (convention)
-	static int      DIV_REMAINDER = 8;
+	static int      DIV_REMAINDER = 8; public
 	static int      STACK_PTR_LOC     = 9; // location in the registers
 	
 	// 16-bit addressable space
@@ -189,6 +189,7 @@ public class FL516CPU {
 			/** CPU DATA MANIPULATION **/
 			// MOV REG_A, REG_B
 			// PROGRAM COUNTER CAN BE ACCESSED VIA: MOV REG_A 0xFF
+			// REGA = REGB
 			if (opcode == MOV) {
 				// move stuff from register B to A
 				REGS[opr1] = opr2 == 0xFF ? (char)(PROGRAM_COUNTER % 65536) : REGS[opr2];
@@ -197,6 +198,7 @@ public class FL516CPU {
 			
 			// LDI REG_INDEX, IMMEDIATE VALUE
 			// load immediate value to a register
+			// REGISTER = value
 			if (opcode == LDI) {
 				// assign immediate value (op1) to register[op2]
 				REGS[opr1] = opr2;
@@ -205,6 +207,7 @@ public class FL516CPU {
 			
 			// LDM REG_INDEX, [MEM ADDRESS]
 			// Load 16-bit value from two consecutive bytes in memory to a register
+			// basically REGISTER = MEMORY[loc]
 			if (opcode == LDM) {
 				// MEMORY[opr2] = MSB, MEMORY[opr2+1] = LSB (big-endian model)
 				// REG[opr1] = (MEMORY[opr2] << 8) | MEMORY[opr2+1]
@@ -215,6 +218,7 @@ public class FL516CPU {
 			// STO [MEM ADDRESS], REG_INDEX
 			// STOI [MEM ADDRESS], IMMEDIATE_VALUE
 			// Store 16-bit register value to two consecutive memory addresses (big-endian model).
+			// MEMORY[loc] (2x) = REGISTER
 			if (opcode == STO || opcode == STOI) {
 				char value = opcode == STOI ? opr2 : REGS[opr2];
 				MEMORY[opr1]     = (byte) ((value >> 8) & 0xFF); // high byte (cut off 2 low bytes)
