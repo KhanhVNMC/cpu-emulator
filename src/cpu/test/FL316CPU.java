@@ -91,10 +91,6 @@ public class FL316CPU {
 			HLT, 00,00, 00,00
 		};
 	
-	public static char memget(int index) {
-		return (char) (MEMORY[index] & 0xFF);
-	}
-	
 	public static void main(String[] args) throws InterruptedException {
 		copy_rom_to_ram();
 		cpu_loop: while (true) {
@@ -102,13 +98,13 @@ public class FL316CPU {
 			if (paused) continue;
 			
 			// fetch instructions (5 bytes)
-			int opcode = memget(PROGRAM_COUNTER++);
+			int opcode = MEMORY[PROGRAM_COUNTER++] & 0xFF; // prevent sign extension
 			// merge two bytes into one 16-bit operand
 			// example: CA, FE
 			// 1) CA << 8 => CA00  (CA left by 8 bits, pad 8 bits to the right)
 			// 2) CA00 | FE => CAFE  (OR merges)
-			char opr1   = (char) ((memget(PROGRAM_COUNTER++) << 8) | memget(PROGRAM_COUNTER++));
-			char opr2   = (char) ((memget(PROGRAM_COUNTER++) << 8) | memget(PROGRAM_COUNTER++));
+			char opr1   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | MEMORY[PROGRAM_COUNTER++]);
+			char opr2   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | MEMORY[PROGRAM_COUNTER++]);
 			System.out.println("[CPU | PC=" + PROGRAM_COUNTER +"] OPCODE: " + String.format("%02X", (int)opcode) 
 				+ " OPERANDS: " + String.format("%04X", (int)opr1) 
 				+ ", " + String.format("%04X", (int)opr2) 
