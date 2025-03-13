@@ -54,6 +54,7 @@ public class FL516CPU {
 	public static final int IFEQ = 0xF3; // IF EQUAL then JUMP
 	public static final int IFLT = 0xF4; // IF LESS THAN then JUMP (CFL = TRUE)
 	public static final int IFGT = 0xF5; // IF GREATER THAN then JUMP (CFL = FALSE)
+	
 	// reserved
 	public static final int DBGP = 0xFF; // debug cpu pause
 	
@@ -83,13 +84,18 @@ public class FL516CPU {
 	};
 	
 	static boolean paused = false;
+   
 	static char[] ROM = {
-		IPUSH, 0XCA,0xFE, 0xCA,0xFE,
-		IPUSH, 0XBA,0xBE, 0xCA,0xFE,
-		POP,00,00,00,00,
-		POP,00,01,00,00,
-		HLT,00,00,00,00
-	};
+		    0x02, 0x00, 0x00, 0x00, 0x0A,
+		    0x0A, 0x00, 0x00, 0x00, 0x01,
+		    0x08, 0x00, 0x01, 0x00, 0x01,
+		    0xF2, 0x00, 0x00, 0x00, 0x02,
+		    0xF3, 0x00, 0x1E, 0x00, 0x00,
+		    0xF1, 0x00, 0x05, 0x00, 0x00,
+		    0xF0, 0x00, 0x00, 0x00, 0x00,
+		};
+
+
 	
 	public static void main(String[] args) throws InterruptedException {
 		// INIT stack to 65536
@@ -97,6 +103,7 @@ public class FL516CPU {
 		
 		copy_rom_to_ram();
 		cpu_loop: while (true) {
+			Thread.sleep(5);
 			
 			if (paused) continue;
 			
@@ -187,9 +194,10 @@ public class FL516CPU {
 			
 			/** CPU DATA MANIPULATION **/
 			// MOV REG_A, REG_B
+			// PROGRAM COUNTER CAN BE ACCESSED VIA: MOV REG_A 0xFF
 			if (opcode == MOV) {
 				// move stuff from register B to A
-				REGS[opr1] = REGS[opr2];
+				REGS[opr1] = opr2 == 0xFF ? (char)(PROGRAM_COUNTER % 65536) : REGS[opr2];
 				continue;
 			}
 			
