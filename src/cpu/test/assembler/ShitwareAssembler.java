@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -99,7 +100,7 @@ public class ShitwareAssembler {
      */
 	public static String[] parseLine(String asm) throws SyntaxError {
 		// ignore comments and blank lines
-		if (asm.isBlank() || asm.trim().startsWith(";")) return new String[0];
+		if (asm.trim().isBlank() || asm.trim().startsWith(";")) return null;
 		
 		asm = asm.split(";", 2)[0].trim(); // strip comments
 		
@@ -114,18 +115,18 @@ public class ShitwareAssembler {
 			// extract the opcode name by getting the first group
 			String opcode = matcher.group(1).toUpperCase();
 			// check for abnormal characters in the instruction name
-			if (opcode.matches(".*[;,.:\\[\\]{}|*()%].*")) {
-				throw new SyntaxError("Invalid opcode grammar: '" + opcode + "'", eOPCODE);
+			if (opcode.matches(".*[;,.:\\[\\]{}|*()%#].*")) {
+				throw new SyntaxError("Invalid opcode grammar: '" + opcode + "', invalid character(s) found!", eOPCODE);
 			}
 			
 			String operands = matcher.group(2).trim(); // the 2nd group
 			if (operands.startsWith(",") || operands.endsWith(",") || operands.contains(",,")) {
-				throw new SyntaxError("Unexpected comma in operands");
+				throw new SyntaxError("Unexpected comma in operands", eFIRST_OPR);
 			}
 			
 			String[] operandArray = operands.split("\\s*,\\s*");
 			if (operandArray.length > 2) {
-				throw new SyntaxError("Expected at most 2 operands, but received " + operandArray.length + "!");
+				throw new SyntaxError("Expected at most 2 operands, but received " + operandArray.length + "!", eSECND_OPR);
 			}
 			
 			// extract operands
@@ -175,6 +176,10 @@ public class ShitwareAssembler {
 	// Labels (e.g., ".main") serve as reference points for jumps (JMP, IFEQ, etc.).
 	// When an instruction references a label, the assembler looks up its address in this map.
 	public static Map<String, Integer> directiveToAddress = new HashMap<>();
+	
+	// A temporary map to store parsed lines from the "instruction parsing" step, orders matter.
+	// This map will then be used by the actual assembler process to assemble instructions
+	public static Map<Integer, String[]> parsedLines = new LinkedHashMap<>();
 
 	// Stores the assembled machine code as a list of bytes. 
 	// Each instruction and its operands are converted into their corresponding 
@@ -186,7 +191,7 @@ public class ShitwareAssembler {
      * @param fileName The name of the source file.
      * @param lines The source code lines.
      */
-	public static void assemble(String fileName, String[] lines) {
+	public static void assemble(String fileName, String[] lines) throws RuntimeException {
 		for (int i = 0; i < lines.length; i++) {
 			int lineNumber = i + 1;
 			String line = lines[i];
@@ -197,9 +202,29 @@ public class ShitwareAssembler {
 				}
 				// parse the instruction
 				String[]   parsedInstruction = parseLine(line);
-				if (parsedInstruction.length == 0) continue; // ignored
-				Opcode	   opcode			 = OPCODE_INFO.get(parsedInstruction[0]);
-				
+				if (parsedInstruction == null) continue; // ignored
+				parsedLines.put(lineNumber, parsedInstruction);
+			
+				// increment by 5
+				ASSEMBLED_BYTES += 5;
+			} catch (SyntaxError syntaxError) {
+				reportAssemblerError(fileName, "instruction parser", lineNumber, line, syntaxError);
+				throw new RuntimeException("Aborted Task");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		// assemble the actual instructions
+		ASSEMBLED_BYTES = 0; // resets
+		assembleFromParsedLines(fileName, lines);
+	}
+	
+	public static void assembleFromParsedLines(String fileName, String[] originalLines) {
+		for (Map.Entry<Integer, String[]> lineEntry : parsedLines.entrySet()) {
+			String[] parsedInstruction = lineEntry.getValue();
+			Opcode	 opcode		       = OPCODE_INFO.get(parsedInstruction[0]);
+			
+			try {
 				// invalid opcode provided!
 				if (opcode == null) {
 					throw new SyntaxError("The '" + parsedInstruction[0] + "' opcode does not exist!", eOPCODE);
@@ -208,7 +233,7 @@ public class ShitwareAssembler {
 				// only allow branching instructions to use this directive feature
 				int opcodeValue = opcode.getCode();
 				if (opcodeValue == FL516CPU.JMP  // unconditional jump
-				 || opcodeValue == FL516CPU.IFEQ  // jump if equal
+				 || opcodeValue == FL516CPU.IFEQ // jump if equal
 				 || opcodeValue == FL516CPU.IFGT // jmp if greater than
 				 || opcodeValue == FL516CPU.IFLT // jmp if less than
 				) {
@@ -240,13 +265,11 @@ public class ShitwareAssembler {
 				assembleOperand(true , opcode.firstOperandType(), parsedInstruction[1]);
 				assembleOperand(false, opcode.secndOperandType(), parsedInstruction[2]);
 				
-				// increment by 5
+				// increment by 5 (one instruction)
 				ASSEMBLED_BYTES += 5;
 			} catch (SyntaxError syntaxError) {
-				reportAssemblerError(fileName, lineNumber, line, syntaxError);
-				break;
-			} catch (Exception e) {
-				e.printStackTrace();
+				reportAssemblerError(fileName, "assembler", lineEntry.getKey(), originalLines[lineEntry.getKey() - 1], syntaxError);
+				throw new RuntimeException("Aborted Task");
 			}
 		}
 	}
@@ -261,37 +284,40 @@ public class ShitwareAssembler {
 	/**
 	 * Report an assembler error (Syntax Error)
 	 */
-	public static void reportAssemblerError(String fileName, int lineNumber, String line, SyntaxError e) {
+	public static void reportAssemblerError(String fileName, String errorType, int lineNumber, String line, SyntaxError e) {
 	    String ln = "| " + lineNumber + " | ";
 	    String tidiedLine = tidyLine(line);
 
 	    StringBuilder errorMessage = new StringBuilder();
-	    errorMessage.append("File \"").append(fileName).append("\"").append(", line ").append(lineNumber).append(", assembler").append(":\n");
+	    errorMessage.append("File \"").append(fileName).append("\"").append(", line ").append(lineNumber).append(", " + errorType).append(":\n");
 	    errorMessage.append(ln).append(line).append("\n");
 	    errorMessage.append(" ".repeat(ln.length())).append("~".repeat(line.length())).append("\n");
 
-	    errorMessage.append("Instruction at line ").append(lineNumber).append(", instruction address ").append(String.format("0x%04X", ASSEMBLED_BYTES)).append(":\n");
+	    errorMessage.append("Instruction at line ").append(lineNumber).append(", instruction address ").append(String.format("0x%04X (Decimal: %d)", ASSEMBLED_BYTES, ASSEMBLED_BYTES)).append(":\n");
 	    errorMessage.append(ln).append(tidiedLine).append("\n");
-
-	    int errorPosition = getErrorPosition(e.errorLevel, ln.length());
-	    if (errorPosition != -1) {
-	        errorMessage.append(" ".repeat(errorPosition)).append("~".repeat(3)).append("\n");
-	        errorMessage.append(" ".repeat(errorPosition + 1)).append("^\n");
+	    
+	    switch (e.errorLevel) {
+	    case eENTIRE_LINE:
+	        errorMessage.append(" ".repeat(ln.length())).append("~".repeat(tidiedLine.length())).append("\n");
+	        errorMessage.append(" ".repeat(ln.length())).append("^\n");
+	        break;
+	    case eOPCODE:
+	        errorMessage.append(" ".repeat(ln.length())).append("~".repeat(3)).append("\n");
+	        errorMessage.append(" ".repeat(ln.length() + 1)).append("^\n");
+	        break;
+	    case eFIRST_OPR:
+	        errorMessage.append(" ".repeat(ln.length() + 4)).append("~".repeat(3)).append("\n");
+	        errorMessage.append(" ".repeat(ln.length() + 5)).append("^\n");
+	        break;
+	    case eSECND_OPR:
+	        errorMessage.append(" ".repeat(ln.length() + 8)).append("~".repeat(3)).append("\n");
+	        errorMessage.append(" ".repeat(ln.length() + 9)).append("^\n");
+	        break;
 	    }
 
 	    errorMessage.append("SyntaxError: ").append(e.getMessage());
 
 	    System.err.println(errorMessage);
-	}
-
-	private static int getErrorPosition(int errorLevel, int baseOffset) {
-	    return switch (errorLevel) {
-	        case eENTIRE_LINE -> baseOffset;
-	        case eOPCODE -> baseOffset;
-	        case eFIRST_OPR -> baseOffset + 4;
-	        case eSECND_OPR -> baseOffset + 8;
-	        default -> -1;
-	    };
 	}
 	
 	public static String generateError(String opcodeStr, Opcode expected) {
@@ -317,8 +343,11 @@ public class ShitwareAssembler {
             List<String> lines = Files.readAllLines(Paths.get(inputFile));
             String[] asmLines = lines.toArray(new String[0]);
 
-            // assemble the code
-            assemble(inputFile, asmLines);
+            try {
+            	assemble(inputFile, asmLines);
+            } catch (RuntimeException e) {
+            	System.exit(1);
+			}
 
             // write to .o15 file
             try (FileOutputStream fos = new FileOutputStream(outputFile)) {

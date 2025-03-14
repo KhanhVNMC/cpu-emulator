@@ -1,5 +1,9 @@
 package cpu.test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 public class FL516CPU {
 	/** opcode labels **/
 	/* data controls */
@@ -13,7 +17,7 @@ public class FL516CPU {
 	/* arithmetic & bitwise controls*/
 	// ADDITION
 	public static final int ADD  = 0x07;
-	public static final int ADI  = 0x08; // ADD IMMEDIATE
+	public static final int ADDI = 0x08; // ADD IMMEDIATE
 	// SUBTRACTION
 	public static final int SUB  = 0x09;
 	public static final int SUBI = 0x0A; // SUBTRACT IMMEDIATE
@@ -67,7 +71,7 @@ public class FL516CPU {
 	
 	// 16-bit addressable space
 	static byte[]   MEMORY       = new byte[0xFFFF + 1]; // basically 65536 addressable bytes
-	static int      STACK_REGION = MEMORY.length - 1; // or 0xFFFF
+	static int      STACK_REGION = MEMORY.length - 1; // or 0xFFFF, the stack grows downward
 	
 	// special CPU flags and program counter
 	static boolean  ZFL = false;   // zero flag (for CMP)
@@ -83,23 +87,20 @@ public class FL516CPU {
 		"SP", // stack pointer
 	};
 	
-	static boolean paused = false;
-
-	static char[] ROM = {
-		HLT
-	};
-
-
+	// if the CPU is temporaily stopped from executing tasks
+	static boolean PAUSED = false;
 	
-	public static void main(String[] args) throws InterruptedException {
+	// initialize the stack register and start the processor
+	public static void startProcessor() throws InterruptedException {
 		// INIT stack to 65536
 		REGS[STACK_PTR_LOC] = (char) STACK_REGION;
 		
-		copy_rom_to_ram();
+		// start the CPU
 		cpu_loop: while (true) {
-			Thread.sleep(5);
+			Thread.sleep(1);
 			
-			if (paused) continue;
+			// if the CPU is paused, then dont do anything
+			if (PAUSED) continue;
 			
 			// fetch instructions (5 bytes)
 			int opcode  = MEMORY[PROGRAM_COUNTER++] & 0xFF; // prevent sign extension
@@ -122,7 +123,7 @@ public class FL516CPU {
 				System.out.println("[CPU | DBG] Paused Execution for Debug! Dumping...");
 				printRegisters((int)opr1 == 0);
 				printMemory((int)opr2 == 0);
-				paused = true;
+				PAUSED = true;
 				continue;
 			}
 			
@@ -230,11 +231,11 @@ public class FL516CPU {
 			// ADD AX, BX is ADD AX TO BX AND PUT TO AX
 			
 			// ADD REG_INDEX, REG_2_INDEX
-			// ADI REG_INDEX, IMMEDIATE_VALUE
+			// ADDI REG_INDEX, IMMEDIATE_VALUE
 			// add value from reg 1 to reg2 (or IV)
-			if (opcode == ADD || opcode == ADI) {
+			if (opcode == ADD || opcode == ADDI) {
 				int value1 = REGS[opr1] & 0xFFFF;
-				int value2 = (opcode == ADI ? opr2 : REGS[opr2]) & 0xFFFF;
+				int value2 = (opcode == ADDI ? opr2 : REGS[opr2]) & 0xFFFF;
 				int result = value1 + value2;
 				
 				// store only the lower 16 bits
@@ -404,7 +405,7 @@ public class FL516CPU {
 		}
 		
 		System.out.println("cpu stopped or crashed, heres da dump");
-		printRegisters(true);
+		printRegisters(false);
 		printMemory(true);
 	}
 	
@@ -456,4 +457,25 @@ public class FL516CPU {
 			MEMORY[i] = (byte) (ROM[i] & 0xFF);
 		}
 	}
+	
+	public static byte[] ROM;
+	public static void main(String... args) throws InterruptedException {
+        if (args.length < 1) {
+            System.err.println("Usage: java fl516emu <program.o>"); 
+            System.exit(1);
+        }
+        String inputFile = args[0];
+        if (!inputFile.endsWith(".o")) {
+        	System.err.println("[FL516 Emulator] Given file is not a valid FL516 binary file!");
+            System.exit(1);
+        }
+        try {
+            ROM = Files.readAllBytes(Paths.get(inputFile));
+            copy_rom_to_ram();
+            startProcessor();
+        } catch (IOException e) {
+            System.err.println("[FL516 Emulator] Error reading binary file: " + e.getMessage());
+            System.exit(1);
+        }
+    }
 }

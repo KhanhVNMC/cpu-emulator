@@ -19,7 +19,7 @@ public class OpcodeInfo {
 		OPCODE_INFO.put("STOI", new Opcode(0x05,  List.of(OPERAND_NUMBER, OPERAND_NUMBER)));
 		// addition
 		OPCODE_INFO.put("ADD",  new Opcode(0x07,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
-		OPCODE_INFO.put("ADI",  new Opcode(0x08,  List.of(OPERAND_REGISTER, OPERAND_NUMBER)));
+		OPCODE_INFO.put("ADDI",  new Opcode(0x08,  List.of(OPERAND_REGISTER, OPERAND_NUMBER)));
 		// subtraction
 		OPCODE_INFO.put("SUB",  new Opcode(0x09,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
 		OPCODE_INFO.put("SUBI", new Opcode(0x0A,  List.of(OPERAND_REGISTER, OPERAND_NUMBER)));
