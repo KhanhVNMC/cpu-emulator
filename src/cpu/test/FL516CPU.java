@@ -3,6 +3,7 @@ package cpu.test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.EmptyStackException;
 
 public class FL516CPU {
 	/** opcode labels **/
@@ -27,39 +28,44 @@ public class FL516CPU {
 	// DIVISON
 	public static final int DIV  = 0x0D;
 	public static final int DIVI = 0x0E; // DIVIDE IMMEDIATE
+	// MODULO
+	public static final int MOD  = 0x0F;
+	public static final int MODI = 0x10; // DIVIDE IMMEDIATE
 	// BITWISE AND
-	public static final int AND  = 0x0F;
-	public static final int ANDI = 0x10; // AND IMMEDIATE
+	public static final int AND  = 0x11;
+	public static final int ANDI = 0x12; // AND IMMEDIATE
 	// BITWISE OR
-	public static final int OR   = 0x11;
-	public static final int ORI  = 0x12; // OR IMMEDIATE
+	public static final int OR   = 0x13;
+	public static final int ORI  = 0x14; // OR IMMEDIATE
 	// BITWISE XOR
-	public static final int XOR  = 0x13;
-	public static final int XORI = 0x14; // XOR IMMEDIATE
+	public static final int XOR  = 0x15;
+	public static final int XORI = 0x16; // XOR IMMEDIATE
 	// BITWISE SHIFT RIGHT (UNSIGNED)
-	public static final int SHR  = 0x15;
-	public static final int SHRI = 0x16; // SHIFT RIGHT IMMEDIATE
+	public static final int SHR  = 0x17;
+	public static final int SHRI = 0x18; // SHIFT RIGHT IMMEDIATE
 	// BITWISE SHIFT LEFT (UNSIGNED)
-	public static final int SHL  = 0x17;
-	public static final int SHLI = 0x18; // SHIFT LEFT IMMEDIATE
+	public static final int SHL  = 0x19;
+	public static final int SHLI = 0x1A; // SHIFT LEFT IMMEDIATE
 	// BITWISE NOT (flip flop)
-	public static final int NOT  = 0x19;
+	public static final int NOT  = 0x1B;
 	
 	/* stack operations */
-	public static final int PUSH = 0x1A;
-	public static final int IPUSH = 0x1B; // PUSH immediate
-	public static final int POP  = 0x1C;
+	public static final int PUSH = 0x2A;
+	public static final int IPUSH = 0x2B; // PUSH immediate
+	public static final int POP  = 0x2C;
 	
 	/* flow controls */
 	public static final int NOP  = 0x00; // NONE instruction
 	public static final int HLT  = 0xF0; // HALT the CPU
 	public static final int JMP  = 0xF1; // JUMP to an address
 	public static final int CMP  = 0xF2; // COMPARE (store result in CFL--compare flag and ZFL--zero flag)
-	public static final int JEQ = 0xF3; // IF EQUAL then JUMP
-	public static final int JLT = 0xF4; // IF LESS THAN then JUMP (CFL = TRUE)
-	public static final int JGT = 0xF5; // IF GREATER THAN then JUMP (CFL = FALSE)
-	public static final int JLE = 0xF6; // IF LESS THAN then JUMP (CFL = TRUE)
-	public static final int JGE = 0xF7; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int JEQ  = 0xF3; // IF EQUAL then JUMP
+	public static final int JLT  = 0xF4; // IF LESS THAN then JUMP (CFL = TRUE)
+	public static final int JGT  = 0xF5; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int JLE  = 0xF6; // IF LESS THAN then JUMP (CFL = TRUE)
+	public static final int JGE  = 0xF7; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int CALL = 0xF8; // CALL a function (and push return address to the stack)
+	public static final int RET  = 0xF9; // RET(urn) by popping the stack and execute JMP
 	
 	// reserved
 	public static final int DBGP = 0xFF; // debug cpu pause
@@ -68,7 +74,6 @@ public class FL516CPU {
 	// registers
 	static char[]   REGS = new char[10]; public // char = 2bytes = 16-bit registers
 	// special registers (convention)
-	static int      DIV_REMAINDER = 8; public
 	static int      STACK_PTR_LOC     = 9; // location in the registers
 	
 	// 16-bit addressable space
@@ -76,21 +81,60 @@ public class FL516CPU {
 	static int      STACK_REGION = MEMORY.length - 1; // or 0xFFFF, the stack grows downward
 	
 	// special CPU flags and program counter
+	/** True if the last CMP operation is zero */
 	static boolean  ZFL = false;   // zero flag (for CMP)
+	/** True if the last CMP operation is negative (negative = smaller, positive = greater) */
 	static boolean  CFL = false;   // carry flag (for unsigned)
+	/** True if the last artithmetic operation overflows (wraps around unsigned 16bit range) */
 	static boolean  OFL = false;   // overflow flag
-	// the program counter
+	/** The program counter (instruction pointer), point at what byte (ISA) to execute (multiples of 5) */
 	static int      PROGRAM_COUNTER = 0;
 	
 	// for the java emulator
 	private static String[] registersName = {
 		"AX", "BX", "CX", "DX", "EX", "FX", "GX", "HX", // 8 all purpose registers
-		"MD", // divison remainder
+		"IX", // divison remainder
 		"SP", // stack pointer
 	};
 	
 	// if the CPU is temporaily stopped from executing tasks
 	static boolean PAUSED = false;
+	
+	/** push an unsigned 16bit integer to the stack (governed by the RSP) */
+	static void stackPush(char value16) {
+		// example
+		// 00 00 00
+		//       ^^ begins here
+		// the operation below writes to it
+		// 00 00 FF
+		//    ^^ written the low byte and move the pointer to the left (-1)
+		MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 & 0xFF); // low byte
+		
+		// the operation below writes to it
+		// 00 FF FF
+		// ^^ written the HIGH byte and move the pointer to the left, ready for the next one
+		MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 >> 8); // high byte
+	}
+	
+	/** pop a value from a stack (moves RSP up) and return it */
+	static char stackPop() throws EmptyStackException {
+		// the minimum size of the stack (that is still pop-able) is 2 bytes, hence
+		// we check that the stack pointer is at least 2 bytes away from the bottom of the stack region.
+		// if the stack pointer exceeds the minimum valid address (i.e., STACK_REGION - 2), warn
+		// 00 00 00 CA FE
+		//       ^^ the pointer must be at least HERE to be able to pop
+		if (REGS[STACK_PTR_LOC] > STACK_REGION - 2) {
+			// display a warning message if the stack pointer is too high, which could lead to an underflow condition when popping
+			System.err.println("Stack underflow! instruction not fulfilled");
+			throw new EmptyStackException();
+		}
+		// for example, we have this stack with ONE 2-bytes element
+		// 00 CA FE
+		// ^ current RSP is at "0"
+		// this increments by 1 and get CA, increment by one again and get FE, and then assign to the register
+		// after "POP", RSP is now at 2, which is the bottom of the stack
+		return (char) ((MEMORY[++REGS[STACK_PTR_LOC]] << 8) | (MEMORY[++REGS[STACK_PTR_LOC]] & 0xFF));
+	}
 	
 	// initialize the stack register and start the processor
 	public static void startProcessor() throws InterruptedException {
@@ -115,9 +159,8 @@ public class FL516CPU {
 			
 			System.out.println("[CPU | PC=" + PROGRAM_COUNTER +"] OPCODE: " + String.format("%02X", (int)opcode) 
 				+ " OPERANDS: " + String.format("%04X", (int)opr1) 
-				+ ", " + String.format("%04X", (int)opr2) 
+				+ ", " + String.format("%04X", (int)opr2)
 			);
-			
 			
 			// CPU DEBUG
 			// DBGP [0 for hex, 1 for dec | REGS DUMP] [0 for hex, 1 for dec | MEMDMP]
@@ -130,7 +173,7 @@ public class FL516CPU {
 			}
 			
 			// NOP 00 00
-			// empty instruction
+			// empty instruction, use to fill up the processor
 			if (opcode == NOP) {
 				continue;
 			}
@@ -144,10 +187,10 @@ public class FL516CPU {
 			}
 			
 			// JMP [Program counter / address]
-			// jump to an address in the program instructions space
+			// jump unconditionally to an address in the program instructions space
 			if (opcode == JMP) {
 				if (opr1 % 5 != 0) {
-					System.err.println("[CPU | JMP WARN] Jump location is not multiple of 5. Undefined behaviour may happen!");
+					System.err.println("[CPU | JMP WARN] Jump location is not a multiple of 5. Undefined behaviour may happen!");
 				}
 				PROGRAM_COUNTER = opr1;
 				continue;
@@ -204,6 +247,32 @@ public class FL516CPU {
 			// OR A equals B
 			if (opcode == JGE) {
 				if (ZFL || !CFL) PROGRAM_COUNTER = opr1;
+				continue;
+			}
+			
+			/** CALL AND RET (STACK BASED) **/
+			// CALL [Program counter / address]
+			// push the current instruction pointer to the stack and
+			// jump unconditionally to an address in the program instructions space
+			if (opcode == CALL) {
+				// push the current call address to the stack
+				stackPush((char)(PROGRAM_COUNTER % 65536));
+				// jump to the determined address
+				if (opr1 % 5 != 0) {
+					System.err.println("[CPU | CALL WARN] Function location is not a multiple of 5. Undefined behaviour may happen!");
+				}
+				PROGRAM_COUNTER = opr1;
+				continue;
+			}
+			
+			// RET (Return from Function)
+			// pops the return address from the stack and jumps back to it
+			// this effectively resumes execution at the point after a CALL
+			if (opcode == RET) {
+				try {
+					// resumes execution
+					PROGRAM_COUNTER = stackPop();
+				} catch (EmptyStackException e) {}
 				continue;
 			}
 			
@@ -307,12 +376,10 @@ public class FL516CPU {
 				continue;
 			}
 			
-			// DIV REG_INDEX, REG_2_INDEX
-			// DIV REG_INDEX, IMMEDIATE_VALUE
-			// divide register 1 by register 2, store quotient in reg 1 and
-			// remainder in register DIV_REMAINDER
+			// DIV  REG_INDEX, REG_2_INDEX
+			// DIVI REG_INDEX, IMMEDIATE_VALUE
+			// divide register 1 by register 2, store quotient in reg 1 (no remainder, use MOD isntead)
 			// reg1 /= reg2 (int)
-			// rdr = reg1 % reg2
 			if (opcode == DIV || opcode == DIVI) {
 				int value1 = REGS[opr1] & 0xFFFF;
 				int value2 = (opcode == DIVI ? opr2 : REGS[opr2]) & 0xFFFF;
@@ -323,8 +390,25 @@ public class FL516CPU {
 					continue;
 				}
 				int quotient = value1 / value2;
-				REGS[opr1] 			= (char) (quotient & 0xFFFF);
-				REGS[DIV_REMAINDER] = (char) ((value1 % value2) & 0xFFFF);
+				REGS[opr1] 	 = (char) (quotient & 0xFFFF);
+				continue;
+			}
+			
+			// MOD  REG_INDEX, REG_2_INDEX
+			// MODI REG_INDEX, IMMEDIATE_VALUE
+			// modulate register 1 by register 2, store in reg 1
+			// reg1 %= reg2 (int)
+			if (opcode == MOD || opcode == MODI) {
+				int value1 = REGS[opr1] & 0xFFFF;
+				int value2 = (opcode == MODI ? opr2 : REGS[opr2]) & 0xFFFF;
+				// handle division by zero
+				if (value2 == 0) {
+					// no wtf
+					OFL = true;
+					continue;
+				}
+				int remainder = value1 % value2;
+				REGS[opr1] 	  = (char) (remainder & 0xFFFF);
 				continue;
 			}
 			
@@ -382,41 +466,18 @@ public class FL516CPU {
 			// IPUSH IMMEDIATE_VALUE
 			// push a value to the stack (decrementing the stack pointer)
 			if (opcode == PUSH || opcode == IPUSH) {
-				// example
-				// 00 00 00
-				//       ^^ begins here
 				char value16 = (opcode == IPUSH ? opr1 : REGS[opr1]);
-				// the operation below writes to it
-				// 00 00 FF
-				//    ^^ written the low byte and move the pointer to the left (-1)
-				MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 & 0xFF); // low byte
-				
-				// the operation below writes to it
-				// 00 FF FF
-				// ^^ written the HIGH byte and move the pointer to the left, ready for the next one
-				MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 >> 8); // high byte
+				// push a value from either a register or immediate value to the stack
+				stackPush(value16);
 				continue;
 			}
 			
 			// POP REGISTER_INDEX
 			// POP from the stack to register index (incrementing the stack pointer)
 			if (opcode == POP) {
-				// the minimum size of the stack (that is still pop-able) is 2 bytes, hence
-				// we check that the stack pointer is at least 2 bytes away from the bottom of the stack region.
-				// if the stack pointer exceeds the minimum valid address (i.e., STACK_REGION - 2), warn
-				// 00 00 00 CA FE
-				//       ^^ the pointer must be at least HERE to be able to pop
-				if (REGS[STACK_PTR_LOC] + 2 > STACK_REGION) {
-					// display a warning message if the stack pointer is too high, which could lead to an underflow condition when popping
-					System.err.println("Stack underflow! instruction not fulfilled");
-					continue;
-				}
-				// for example, we have this stack with ONE 2-bytes element
-				// 00 CA FE
-				// ^ current RSP is at "0"
-				// this increments by 1 and get CA, increment by one again and get FE, and then assign to the register
-				// after "POP", RSP is now at 2, which is the bottom of the stack
-				REGS[opr1] = (char) ((MEMORY[++REGS[STACK_PTR_LOC]] << 8) | (MEMORY[++REGS[STACK_PTR_LOC]] & 0xFF));
+				try {
+					REGS[opr1] = stackPop(); // pop out of the stack
+				} catch (EmptyStackException ignored) {}
 				continue;
 			}
 			

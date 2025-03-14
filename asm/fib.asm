@@ -2,7 +2,7 @@
 jmp .entry
 
 .entry
-    ipush   0
+    ipush   10 ; 10th fib
     jmp     .fib
 
 ; fib subroutine

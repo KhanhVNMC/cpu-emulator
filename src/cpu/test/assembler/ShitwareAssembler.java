@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,11 +18,12 @@ import cpu.test.FL516CPU;
 
 public class ShitwareAssembler {
 	public static boolean isTypeCorrect(String operand, int expected) {
-		if (expected == -1 && operand == null) return true;
+		if (expected == -1 && operand == null) return true; // no operand expected, and none provided.
+		if (expected != -1 && operand == null) return false; // operand expected, but none provided.
 		boolean isRegister = isRegister(operand);
-		if (expected == OPERAND_REGISTER &&  isRegister) return true;
-		if (expected == OPERAND_NUMBER   && !isRegister) return true;
-		return false;
+		if (expected == OPERAND_REGISTER && isRegister) return true; // expected register, got register.
+		if (expected == OPERAND_NUMBER && !isRegister) return true; // expected number, got number.
+		return false; // operand type mismatch.
 	}
 	
 	/**
@@ -52,15 +52,12 @@ public class ShitwareAssembler {
 		if (targetRegister.equals("SP") /* stack pointer location in regs */) {
 			return (byte)(FL516CPU.STACK_PTR_LOC & 0xFF);
 		}
-		if (targetRegister.equals("MD") /* division remainder loc in regs */) {
-			return (byte)(FL516CPU.DIV_REMAINDER & 0xFF);
-		}
 		try {
 			int register = Integer.parseInt(targetRegister);
-			if (register < 0 || register > 7) throw new NumberFormatException();
+			if (register < 0 || register > 8) throw new NumberFormatException();
 			return (byte) (register & 0xFF);
 		} catch (NumberFormatException e) {
-			throw new SyntaxError("'" + operand + "' is not a valid register operand!\nValid general-purpose registers range from R0 to R7.", firstOperand ? eFIRST_OPR : eSECND_OPR);
+			throw new SyntaxError("'" + operand + "' is not a valid register operand!\nValid general-purpose registers range from R0 to R8 ('RSP' for stack register).", firstOperand ? eFIRST_OPR : eSECND_OPR);
 		}
 	}
 	
@@ -175,7 +172,7 @@ public class ShitwareAssembler {
 	// A mapping of labels (directives) to their corresponding memory addresses. 
 	// Labels (e.g., ".main") serve as reference points for jumps (JMP, IFEQ, etc.).
 	// When an instruction references a label, the assembler looks up its address in this map.
-	public static Map<String, Integer> directiveToAddress = new HashMap<>();
+	public static Map<String, Integer> labelsToAddress = new HashMap<>();
 	
 	// A temporary map to store parsed lines from the "instruction parsing" step, orders matter.
 	// This map will then be used by the actual assembler process to assemble instructions
@@ -193,15 +190,21 @@ public class ShitwareAssembler {
      */
 	public static void assemble(String fileName, String[] lines) throws RuntimeException {
 		for (int i = 0; i < lines.length; i++) {
-			int lineNumber = i + 1;
-			String line = lines[i];
+			int lineNumber = i + 1; // get the line number (+1)
+			String line = lines[i].trim(); // get the line (trim())
 			try {
+				// if the line starts with "."
 				if (line.startsWith(".")) {
-					directiveToAddress.put(line.substring(1), ASSEMBLED_BYTES);
+					String label = line.substring(1).trim();
+					if (label.matches(".*[;,.:\\[\\]{}|*()%#].*")) {
+						throw new SyntaxError("Invalid label grammar, special characters detected!", eENTIRE_LINE);
+					}
+					// get the label address
+					labelsToAddress.put(label, ASSEMBLED_BYTES);
 					continue;
 				}
 				// parse the instruction
-				String[]   parsedInstruction = parseLine(line);
+				String[] parsedInstruction = parseLine(line);
 				if (parsedInstruction == null) continue; // ignored
 				parsedLines.put(lineNumber, parsedInstruction);
 			
@@ -230,25 +233,26 @@ public class ShitwareAssembler {
 					throw new SyntaxError("The '" + parsedInstruction[0] + "' opcode does not exist!", eOPCODE);
 				}
 				
-				// only allow branching instructions to use this directive feature
+				// only allow branching instructions to use this labelling feature
 				int opcodeValue = opcode.getCode();
 				if (opcodeValue == FL516CPU.JMP  // unconditional jump
-				 || opcodeValue == FL516CPU.JEQ // jump if equal
-				 || opcodeValue == FL516CPU.JGT // jmp if greater than
-				 || opcodeValue == FL516CPU.JLT // jmp if less than
-				 || opcodeValue == FL516CPU.JGE // jmp if greater or equal
-				 || opcodeValue == FL516CPU.JLE // jmp if lesser or equal
+				 || opcodeValue == FL516CPU.JEQ  // jump if equal
+				 || opcodeValue == FL516CPU.JGT  // jmp if greater than
+				 || opcodeValue == FL516CPU.JLT  // jmp if less than
+				 || opcodeValue == FL516CPU.JGE  // jmp if greater or equal
+				 || opcodeValue == FL516CPU.JLE  // jmp if lesser or equal
+				 || opcodeValue == FL516CPU.CALL // function call (the same as JMP but with RET)
 				) {
-					// replace .[directive] with the memory address of directive
+					// replace .[label] with the memory address of label
 					for (int oprIndex = 1; oprIndex <= 2; oprIndex++) {
 						String operand = parsedInstruction[oprIndex];
 						if (operand == null || !operand.startsWith(".")) continue;
-						// attempt to find the directive assigned address
-						Integer addressMap = directiveToAddress.get(operand.substring(1));
+						// attempt to find the label assigned address
+						Integer addressMap = labelsToAddress.get(operand.substring(1).trim());
 						if (addressMap == null) {
-							throw new SyntaxError("Undefined directive '" + operand + "'", oprIndex);
+							throw new SyntaxError("Undefined label '" + operand + "'\nEnsure the label is defined somewhere in the source.", oprIndex);
 						}
-						// override the directive stirng by the actual address
+						// override the label stirng by the actual address
 						parsedInstruction[oprIndex] = String.valueOf(addressMap);
 					}
 				}
@@ -347,6 +351,7 @@ public class ShitwareAssembler {
 
             try {
             	assemble(inputFile, asmLines);
+            	System.out.println("Assembled!");
             } catch (RuntimeException e) {
             	System.exit(1);
 			}

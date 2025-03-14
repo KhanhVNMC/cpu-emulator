@@ -3,11 +3,11 @@
     "patterns": [
         {
             "name": "keyword.control.fl516",
-            "match": "(?i)\\b(MOV|LDI|LDM|STO|STOI|ADD|ADDI|SUB|SUBI|MUL|MULI|DIV|DIVI|OR|ORI|XOR|XORI|SHR|SHRI|SHL|SHLI|NOT|PUSH|IPUSH|POP|HLT|JMP|CMP|JEQ|JLT|JGT|JGE|JLE|NOP|DBGP|BLNK)\\b"
+            "match": "(?i)\\b(MOV|LDI|LDM|STO|STOI|ADD|ADDI|SUB|SUBI|MUL|MULI|DIV|DIVI|MOD|MODI|OR|ORI|XOR|XORI|SHR|SHRI|SHL|SHLI|NOT|PUSH|IPUSH|POP|HLT|JMP|CALL|RET|CMP|JEQ|JLT|JGT|JGE|JLE|NOP|DBGP|BLNK)\\b"
         },
         {
             "name": "variable.register.fl516",
-            "match": "(?i)\\b(R[0-7]|RSP|RMD)\\b"
+            "match": "(?i)\\b(R[0-8]|RSP)\\b"
         },
         {
             "name": "constant.numeric.fl516",
