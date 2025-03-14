@@ -57,6 +57,8 @@ public class OpcodeInfo {
 		OPCODE_INFO.put("IFEQ", new Opcode(0xF3,  List.of(OPERAND_NUMBER)));
 		OPCODE_INFO.put("IFLT", new Opcode(0xF4,  List.of(OPERAND_NUMBER)));
 		OPCODE_INFO.put("IFGT", new Opcode(0xF5,  List.of(OPERAND_NUMBER)));
+		OPCODE_INFO.put("IFLE", new Opcode(0xF6,  List.of(OPERAND_NUMBER)));
+		OPCODE_INFO.put("IFGE", new Opcode(0xF7,  List.of(OPERAND_NUMBER)));
 		// reserved
 		OPCODE_INFO.put("NOP",  new Opcode(0x00,  List.of()));
 		OPCODE_INFO.put("DBGP", new Opcode(0xFF,  List.of()));

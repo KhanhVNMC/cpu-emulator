@@ -58,6 +58,8 @@ public class FL516CPU {
 	public static final int IFEQ = 0xF3; // IF EQUAL then JUMP
 	public static final int IFLT = 0xF4; // IF LESS THAN then JUMP (CFL = TRUE)
 	public static final int IFGT = 0xF5; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int IFLE = 0xF6; // IF LESS THAN then JUMP (CFL = TRUE)
+	public static final int IFGE = 0xF7; // IF GREATER THAN then JUMP (CFL = FALSE)
 	
 	// reserved
 	public static final int DBGP = 0xFF; // debug cpu pause
@@ -179,11 +181,29 @@ public class FL516CPU {
 				continue;
 			}
 			
+			// IFLE [Program counter] ; IF LESS OR EQUAL
+			// jump to an address in the program instructions space IF
+			// and only if the C_FLAG (CARRY) is set (result of cmp is: A less than B)
+			// OR A equals B
+			if (opcode == IFLE) {
+				if (ZFL && CFL) PROGRAM_COUNTER = opr1;
+				continue;
+			}
+			
 			// IFGT [Program counter] ; IF GREATER THAN
 			// jump to an address in the program instructions space IF
 			// and only if the C_FLAG (CARRY) is CLEAR (result of cmp is: A greater than B)
 			if (opcode == IFGT) {
 				if (!ZFL && !CFL) PROGRAM_COUNTER = opr1;
+				continue;
+			}
+			
+			// IFGE [Program counter] ; IF GREATER OR EQUAL
+			// jump to an address in the program instructions space IF
+			// and only if the C_FLAG (CARRY) is CLEAR (result of cmp is: A greater than B)
+			// OR A equals B
+			if (opcode == IFGE) {
+				if (ZFL && !CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
