@@ -9,7 +9,7 @@ jmp .entry
 
 .loop
     cmp     r0, r1 ; if (r0 >= r1) break;
-    ifge    .exit
+    jge     .exit
     ; code executes here
     
     ; add one?

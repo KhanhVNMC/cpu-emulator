@@ -12,7 +12,7 @@ jmp .entry
     push    r0      ; push the current reg0 value to the stack
     addi    r1, 1
     cmp     r0, r3
-    ifeq    .exit
+    jeq     .exit
     jmp     .loop
 
 .exit

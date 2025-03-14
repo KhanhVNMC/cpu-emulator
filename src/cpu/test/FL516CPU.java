@@ -186,7 +186,7 @@ public class FL516CPU {
 			// and only if the C_FLAG (CARRY) is set (result of cmp is: A less than B)
 			// OR A equals B
 			if (opcode == JLE) {
-				if (ZFL && CFL) PROGRAM_COUNTER = opr1;
+				if (ZFL || CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
@@ -203,7 +203,7 @@ public class FL516CPU {
 			// and only if the C_FLAG (CARRY) is CLEAR (result of cmp is: A greater than B)
 			// OR A equals B
 			if (opcode == JGE) {
-				if (ZFL && !CFL) PROGRAM_COUNTER = opr1;
+				if (ZFL || !CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
