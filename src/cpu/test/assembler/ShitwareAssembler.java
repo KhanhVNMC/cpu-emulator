@@ -196,8 +196,21 @@ public class ShitwareAssembler {
 				// if the line starts with "."
 				if (line.startsWith(".")) {
 					String label = line.substring(1).trim();
+					// label colon is optional, but a warning is issued if omitted
+					boolean warn = true;
+					if (line.endsWith(":")) {
+						warn = false;
+						// remove the colon while parsing name, but raises a warning
+						label = label.substring(0, label.length() - 1);
+					}
+					// check for illegal chars
 					if (label.matches(".*[;,.:\\[\\]{}|*()%#].*")) {
 						throw new SyntaxError("Invalid label grammar, special characters detected!", eENTIRE_LINE);
+					}
+					// after passed the precheck, raise a warning if applicable
+					if (warn) {
+						System.err.println("File \"" + fileName + "\", line " + lineNumber + ", warning:");
+						System.err.println("   Recommended: Label '" + label + "' should end with a colon (':').");
 					}
 					// get the label address
 					labelsToAddress.put(label, ASSEMBLED_BYTES);

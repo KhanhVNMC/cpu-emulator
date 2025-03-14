@@ -15,7 +15,7 @@
         },
         {
             "name": "entity.name.function.fl516",
-            "match": "\\.(\\w+)"
+            "match": "\\.(\\w+):?"
         },
         {
             "name": "comment.line.semicolon.fl516",
