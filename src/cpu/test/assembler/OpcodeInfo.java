@@ -53,12 +53,14 @@ public class OpcodeInfo {
 		// control flow
 		OPCODE_INFO.put("HLT",  new Opcode(0xF0,  List.of()));
 		OPCODE_INFO.put("JMP",  new Opcode(0xF1,  List.of(OPERAND_NUMBER)));
+		// compare (allow branch to be used *properly* after this)
 		OPCODE_INFO.put("CMP",  new Opcode(0xF2,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
-		OPCODE_INFO.put("IFEQ", new Opcode(0xF3,  List.of(OPERAND_NUMBER)));
-		OPCODE_INFO.put("IFLT", new Opcode(0xF4,  List.of(OPERAND_NUMBER)));
-		OPCODE_INFO.put("IFGT", new Opcode(0xF5,  List.of(OPERAND_NUMBER)));
-		OPCODE_INFO.put("IFLE", new Opcode(0xF6,  List.of(OPERAND_NUMBER)));
-		OPCODE_INFO.put("IFGE", new Opcode(0xF7,  List.of(OPERAND_NUMBER)));
+		// branch condition
+		OPCODE_INFO.put("JEQ", new Opcode(0xF3,  List.of(OPERAND_NUMBER)));
+		OPCODE_INFO.put("JLT", new Opcode(0xF4,  List.of(OPERAND_NUMBER)));
+		OPCODE_INFO.put("JGT", new Opcode(0xF5,  List.of(OPERAND_NUMBER)));
+		OPCODE_INFO.put("JLE", new Opcode(0xF6,  List.of(OPERAND_NUMBER)));
+		OPCODE_INFO.put("JGE", new Opcode(0xF7,  List.of(OPERAND_NUMBER)));
 		// reserved
 		OPCODE_INFO.put("NOP",  new Opcode(0x00,  List.of()));
 		OPCODE_INFO.put("DBGP", new Opcode(0xFF,  List.of()));

@@ -55,11 +55,11 @@ public class FL516CPU {
 	public static final int HLT  = 0xF0; // HALT the CPU
 	public static final int JMP  = 0xF1; // JUMP to an address
 	public static final int CMP  = 0xF2; // COMPARE (store result in CFL--compare flag and ZFL--zero flag)
-	public static final int IFEQ = 0xF3; // IF EQUAL then JUMP
-	public static final int IFLT = 0xF4; // IF LESS THAN then JUMP (CFL = TRUE)
-	public static final int IFGT = 0xF5; // IF GREATER THAN then JUMP (CFL = FALSE)
-	public static final int IFLE = 0xF6; // IF LESS THAN then JUMP (CFL = TRUE)
-	public static final int IFGE = 0xF7; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int JEQ = 0xF3; // IF EQUAL then JUMP
+	public static final int JLT = 0xF4; // IF LESS THAN then JUMP (CFL = TRUE)
+	public static final int JGT = 0xF5; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int JLE = 0xF6; // IF LESS THAN then JUMP (CFL = TRUE)
+	public static final int JGE = 0xF7; // IF GREATER THAN then JUMP (CFL = FALSE)
 	
 	// reserved
 	public static final int DBGP = 0xFF; // debug cpu pause
@@ -164,45 +164,45 @@ public class FL516CPU {
 				continue;
 			}
 			
-			// IFEQ [Program counter] ; IF EQUALS
+			// JEQ [Program counter] ; IF EQUALS
 			// jump to an address in the program instructions space IF
 			// and only if the Z_FLAG (ZERO) is set (result of cmp equals)
-			if (opcode == IFEQ) {
+			if (opcode == JEQ) {
 				// if there's a ZERO
 				if (ZFL) PROGRAM_COUNTER = opr1; // jump to an address
 				continue;
 			}
 			
-			// IFLT [Program counter] ; IF LESS THAN
+			// JLT [Program counter] ; IF LESS THAN
 			// jump to an address in the program instructions space IF
 			// and only if the C_FLAG (CARRY) is set (result of cmp is: A less than B)
-			if (opcode == IFLT) {
+			if (opcode == JLT) {
 				if (!ZFL && CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
-			// IFLE [Program counter] ; IF LESS OR EQUAL
+			// JLE [Program counter] ; IF LESS OR EQUAL
 			// jump to an address in the program instructions space IF
 			// and only if the C_FLAG (CARRY) is set (result of cmp is: A less than B)
 			// OR A equals B
-			if (opcode == IFLE) {
+			if (opcode == JLE) {
 				if (ZFL && CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
-			// IFGT [Program counter] ; IF GREATER THAN
+			// JGT [Program counter] ; IF GREATER THAN
 			// jump to an address in the program instructions space IF
 			// and only if the C_FLAG (CARRY) is CLEAR (result of cmp is: A greater than B)
-			if (opcode == IFGT) {
+			if (opcode == JGT) {
 				if (!ZFL && !CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
-			// IFGE [Program counter] ; IF GREATER OR EQUAL
+			// JGE [Program counter] ; IF GREATER OR EQUAL
 			// jump to an address in the program instructions space IF
 			// and only if the C_FLAG (CARRY) is CLEAR (result of cmp is: A greater than B)
 			// OR A equals B
-			if (opcode == IFGE) {
+			if (opcode == JGE) {
 				if (ZFL && !CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}

@@ -233,11 +233,11 @@ public class ShitwareAssembler {
 				// only allow branching instructions to use this directive feature
 				int opcodeValue = opcode.getCode();
 				if (opcodeValue == FL516CPU.JMP  // unconditional jump
-				 || opcodeValue == FL516CPU.IFEQ // jump if equal
-				 || opcodeValue == FL516CPU.IFGT // jmp if greater than
-				 || opcodeValue == FL516CPU.IFLT // jmp if less than
-				 || opcodeValue == FL516CPU.IFGE // jmp if greater or equal
-				 || opcodeValue == FL516CPU.IFLE // jmp if lesser or equal
+				 || opcodeValue == FL516CPU.JEQ // jump if equal
+				 || opcodeValue == FL516CPU.JGT // jmp if greater than
+				 || opcodeValue == FL516CPU.JLT // jmp if less than
+				 || opcodeValue == FL516CPU.JGE // jmp if greater or equal
+				 || opcodeValue == FL516CPU.JLE // jmp if lesser or equal
 				) {
 					// replace .[directive] with the memory address of directive
 					for (int oprIndex = 1; oprIndex <= 2; oprIndex++) {
