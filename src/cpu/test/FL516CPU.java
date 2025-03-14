@@ -175,7 +175,7 @@ public class FL516CPU {
 			// jump to an address in the program instructions space IF
 			// and only if the C_FLAG (CARRY) is set (result of cmp is: A less than B)
 			if (opcode == IFLT) {
-				if (CFL) PROGRAM_COUNTER = opr1;
+				if (!ZFL && CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
@@ -183,7 +183,7 @@ public class FL516CPU {
 			// jump to an address in the program instructions space IF
 			// and only if the C_FLAG (CARRY) is CLEAR (result of cmp is: A greater than B)
 			if (opcode == IFGT) {
-				if (!CFL) PROGRAM_COUNTER = opr1;
+				if (!ZFL && !CFL) PROGRAM_COUNTER = opr1;
 				continue;
 			}
 			
