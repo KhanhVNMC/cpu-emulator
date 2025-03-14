@@ -250,6 +250,7 @@ public class ShitwareAssembler {
 				int opcodeValue = opcode.getCode();
 				if (opcodeValue == FL516CPU.JMP  // unconditional jump
 				 || opcodeValue == FL516CPU.JEQ  // jump if equal
+				 || opcodeValue == FL516CPU.JNE  // jump if not equal
 				 || opcodeValue == FL516CPU.JGT  // jmp if greater than
 				 || opcodeValue == FL516CPU.JLT  // jmp if less than
 				 || opcodeValue == FL516CPU.JGE  // jmp if greater or equal

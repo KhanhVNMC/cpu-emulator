@@ -61,6 +61,7 @@ public class OpcodeInfo {
 		OPCODE_INFO.put("CMP",  new Opcode(CMP,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
 		// branch condition
 		OPCODE_INFO.put("JEQ",  new Opcode(JEQ,  List.of(OPERAND_NUMBER)));
+		OPCODE_INFO.put("JNE",  new Opcode(JNE,  List.of(OPERAND_NUMBER)));
 		OPCODE_INFO.put("JLT",  new Opcode(JLT,  List.of(OPERAND_NUMBER)));
 		OPCODE_INFO.put("JGT",  new Opcode(JGT,  List.of(OPERAND_NUMBER)));
 		OPCODE_INFO.put("JLE",  new Opcode(JLE,  List.of(OPERAND_NUMBER)));

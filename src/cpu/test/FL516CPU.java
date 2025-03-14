@@ -55,19 +55,20 @@ public class FL516CPU {
 	public static final int POP  = 0x2C;
 	
 	/* flow controls */
-	public static final int NOP  = 0x00; // NONE instruction
 	public static final int HLT  = 0xF0; // HALT the CPU
 	public static final int JMP  = 0xF1; // JUMP to an address
 	public static final int CMP  = 0xF2; // COMPARE (store result in CFL--compare flag and ZFL--zero flag)
 	public static final int JEQ  = 0xF3; // IF EQUAL then JUMP
-	public static final int JLT  = 0xF4; // IF LESS THAN then JUMP (CFL = TRUE)
-	public static final int JGT  = 0xF5; // IF GREATER THAN then JUMP (CFL = FALSE)
-	public static final int JLE  = 0xF6; // IF LESS THAN then JUMP (CFL = TRUE)
-	public static final int JGE  = 0xF7; // IF GREATER THAN then JUMP (CFL = FALSE)
-	public static final int CALL = 0xF8; // CALL a function (and push return address to the stack)
-	public static final int RET  = 0xF9; // RET(urn) by popping the stack and execute JMP
+	public static final int JNE  = 0xF4; // IF NOT EQUAL then JUMP
+	public static final int JLT  = 0xF5; // IF LESS THAN then JUMP (CFL = TRUE)
+	public static final int JGT  = 0xF6; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int JLE  = 0xF7; // IF LESS THAN then JUMP (CFL = TRUE)
+	public static final int JGE  = 0xF8; // IF GREATER THAN then JUMP (CFL = FALSE)
+	public static final int CALL = 0xF9; // CALL a function (and push return address to the stack)
+	public static final int RET  = 0xFA; // RET(urn) by popping the stack and execute JMP
 	
 	// reserved
+	public static final int NOP  = 0x00; // NONE instruction
 	public static final int DBGP = 0xFF; // debug cpu pause
 	
 	/* CPU Internal parts (registers & memory & internal flags) */
@@ -207,12 +208,21 @@ public class FL516CPU {
 				continue;
 			}
 			
-			// JEQ [Program counter] ; IF EQUALS
+			// JEQ [Program counter] ; IF EQUAL
 			// jump to an address in the program instructions space IF
 			// and only if the Z_FLAG (ZERO) is set (result of cmp equals)
 			if (opcode == JEQ) {
 				// if there's a ZERO
 				if (ZFL) PROGRAM_COUNTER = opr1; // jump to an address
+				continue;
+			}
+			
+			// JNE [Program counter] ; IF NOT EQUAL
+			// jump to an address in the program instructions space IF
+			// and only if the Z_FLAG (ZERO) is CLEAR (result of cmp equals)
+			if (opcode == JNE) {
+				// if there's NOT a ZERO
+				if (!ZFL) PROGRAM_COUNTER = opr1; // jump to an address
 				continue;
 			}
 			
