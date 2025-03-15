@@ -3,7 +3,7 @@
     "patterns": [
         {
             "name": "keyword.control.fl516",
-            "match": "(?i)\\b(MOV|LDI|LDM|STO|STOI|ADD|ADDI|SUB|SUBI|MUL|MULI|DIV|DIVI|MOD|MODI|OR|ORI|XOR|XORI|SHR|SHRI|SHL|SHLI|NOT|PUSH|IPUSH|POP|HLT|JMP|CALL|RET|CMP|JEQ|JNE|JLT|JGT|JGE|JLE|NOP|DBGP|BLNK)\\b"
+            "match": "(?i)\\b(MOV|LDI|LMB|LMH|SMH|SMB|ADD|ADDI|SUB|SUBI|MUL|MULI|DIV|DIVI|MOD|MODI|OR|ORI|XOR|XORI|SHR|SHRI|SHL|SHLI|NOT|PUSH|IPUSH|POP|HLT|JMP|CALL|RET|CMP|JEQ|JNE|JLT|JGT|JGE|JLE|NOP|DBGP|BLNK)\\b"
         },
         {
             "name": "variable.register.fl516",

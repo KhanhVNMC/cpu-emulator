@@ -15,9 +15,10 @@ public class OpcodeInfo {
 		// data controls
 		OPCODE_INFO.put("MOV",  new Opcode(MOV,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
 		OPCODE_INFO.put("LDI",  new Opcode(LDI,  List.of(OPERAND_REGISTER, OPERAND_NUMBER)));
-		OPCODE_INFO.put("LDM",  new Opcode(LDM,  List.of(OPERAND_REGISTER, OPERAND_NUMBER)));
-		OPCODE_INFO.put("STO",  new Opcode(STO,  List.of(OPERAND_NUMBER, OPERAND_REGISTER)));
-		OPCODE_INFO.put("STOI", new Opcode(STOI, List.of(OPERAND_NUMBER, OPERAND_NUMBER)));
+		OPCODE_INFO.put("LMH",  new Opcode(LMH,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
+		OPCODE_INFO.put("LMB",  new Opcode(LMB,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
+		OPCODE_INFO.put("SMH",  new Opcode(SMH,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
+		OPCODE_INFO.put("SMB",  new Opcode(SMB,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
 		// addition
 		OPCODE_INFO.put("ADD",  new Opcode(ADD,  List.of(OPERAND_REGISTER, OPERAND_REGISTER)));
 		OPCODE_INFO.put("ADDI", new Opcode(ADDI, List.of(OPERAND_REGISTER, OPERAND_NUMBER)));

@@ -7,7 +7,7 @@ jmp .entry
     call    .arithmetic_test
     call    .stack_test
     call    .branch_test
-    call    .memory_test
+    ;call    .memory_test
     hlt               ; Halt the program after all tests
 
 ; --- Arithmetic Test ---
@@ -43,13 +43,13 @@ jmp .entry
     ret                ; Return to main entry
 
 ; --- Memory Test (if applicable) ---
-.memory_test:
-    ldi     r7, 42
-    sto     0x200, r7  ; Store r7 into memory address 0x200
-    ldm     r8, 0x200  ; Load from memory address 0x200 into r8
-    cmp     r7, r8     ; Compare values
-    jne     .error     ; If not equal, jump to error
-    ret                ; Return to main entry
+;.memory_test:
+;    ldi     r7, 42
+;    sto     0x200, r7  ; Store r7 into memory address 0x200
+;    ldm     r8, 0x200  ; Load from memory address 0x200 into r8
+;    cmp     r7, r8     ; Compare values
+;    jne     .error     ; If not equal, jump to error
+;    ret                ; Return to main entry
 
 ; --- Error Handler ---
 .error:

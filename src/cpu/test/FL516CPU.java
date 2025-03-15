@@ -10,49 +10,50 @@ public class FL516CPU {
 	/* data controls */
 	public static final int MOV  = 0x01; // move from registers to registers
 	public static final int LDI  = 0x02; // load immediate (load a value to reg)
-	public static final int LDM  = 0x03; // load a value from memory to reg
-	public static final int STO  = 0x04; // write to memory from register
-	public static final int STOI = 0x05; // write to memory from immediate value
-	public static final int BLNK = 0x06; // blank instruction
+	public static final int LMH  = 0x03; // load a 16-bit (2 bytes; HALF-WORD) value from the memory address stored in a register to a register
+	public static final int LMB  = 0x04; // load a 8-bit (1 byte; HALF-WORD) value from the memory address stored in a register to a register
+	public static final int SMH  = 0x06; // stores a 16-bit (WORD) value from a register into the memory address stored in another register.
+	public static final int SMB  = 0x05; // stores a 8-bit value (HALFWORD) from a register into the memory address stored in another register.
+	public static final int BLNK = 0x08; // blank instruction
 	
 	/* arithmetic & bitwise controls*/
 	// ADDITION
-	public static final int ADD  = 0x07;
-	public static final int ADDI = 0x08; // ADD IMMEDIATE
+	public static final int ADD  = 0x10;
+	public static final int ADDI = 0x11; // ADD IMMEDIATE
 	// SUBTRACTION
-	public static final int SUB  = 0x09;
-	public static final int SUBI = 0x0A; // SUBTRACT IMMEDIATE
+	public static final int SUB  = 0x12;
+	public static final int SUBI = 0x13; // SUBTRACT IMMEDIATE
 	// MULTIPLICATION
-	public static final int MUL  = 0x0B;
-	public static final int MULI = 0x0C; // MULTIPLY IMMEDIATE
+	public static final int MUL  = 0x14;
+	public static final int MULI = 0x15; // MULTIPLY IMMEDIATE
 	// DIVISON
-	public static final int DIV  = 0x0D;
-	public static final int DIVI = 0x0E; // DIVIDE IMMEDIATE
+	public static final int DIV  = 0x16;
+	public static final int DIVI = 0x17; // DIVIDE IMMEDIATE
 	// MODULO
-	public static final int MOD  = 0x0F;
-	public static final int MODI = 0x10; // DIVIDE IMMEDIATE
+	public static final int MOD  = 0x18;
+	public static final int MODI = 0x19; // DIVIDE IMMEDIATE
 	// BITWISE AND
-	public static final int AND  = 0x11;
-	public static final int ANDI = 0x12; // AND IMMEDIATE
+	public static final int AND  = 0x1A;
+	public static final int ANDI = 0x1B; // AND IMMEDIATE
 	// BITWISE OR
-	public static final int OR   = 0x13;
-	public static final int ORI  = 0x14; // OR IMMEDIATE
+	public static final int OR   = 0x1C;
+	public static final int ORI  = 0x1D; // OR IMMEDIATE
 	// BITWISE XOR
-	public static final int XOR  = 0x15;
-	public static final int XORI = 0x16; // XOR IMMEDIATE
+	public static final int XOR  = 0x1E;
+	public static final int XORI = 0x1F; // XOR IMMEDIATE
 	// BITWISE SHIFT RIGHT (UNSIGNED)
-	public static final int SHR  = 0x17;
-	public static final int SHRI = 0x18; // SHIFT RIGHT IMMEDIATE
+	public static final int SHR  = 0x20;
+	public static final int SHRI = 0x21; // SHIFT RIGHT IMMEDIATE
 	// BITWISE SHIFT LEFT (UNSIGNED)
-	public static final int SHL  = 0x19;
-	public static final int SHLI = 0x1A; // SHIFT LEFT IMMEDIATE
+	public static final int SHL  = 0x22;
+	public static final int SHLI = 0x23; // SHIFT LEFT IMMEDIATE
 	// BITWISE NOT (flip flop)
-	public static final int NOT  = 0x1B;
+	public static final int NOT  = 0x24;
 	
 	/* stack operations */
-	public static final int PUSH = 0x2A;
-	public static final int IPUSH = 0x2B; // PUSH immediate
-	public static final int POP  = 0x2C;
+	public static final int PUSH  = 0x3A;
+	public static final int IPUSH = 0x3B; // PUSH immediate
+	public static final int POP   = 0x3C;
 	
 	/* flow controls */
 	public static final int HLT  = 0xF0; // HALT the CPU
@@ -93,8 +94,7 @@ public class FL516CPU {
 	
 	// for the java emulator
 	private static String[] registersName = {
-		"AX", "BX", "CX", "DX", "EX", "FX", "GX", "HX", // 8 all purpose registers
-		"IX", // divison remainder
+		"AX", "BX", "CX", "DX", "EX", "FX", "GX", "HX", "IX", // 9 all purpose registers
 		"SP", // stack pointer
 	};
 	
@@ -286,7 +286,7 @@ public class FL516CPU {
 				continue;
 			}
 			
-			/** CPU DATA MANIPULATION **/
+			/** CPU REGISTERS DATA MANIPULATION **/
 			// MOV REG_A, REG_B
 			// PROGRAM COUNTER CAN BE ACCESSED VIA: MOV REG_A 0xFF
 			// REGA = REGB
@@ -305,24 +305,41 @@ public class FL516CPU {
 				continue;
 			}
 			
-			// LDM REG_INDEX, [MEM ADDRESS]
-			// Load 16-bit value from two consecutive bytes in memory to a register
-			// basically REGISTER = MEMORY[loc]
-			if (opcode == LDM) {
-				// MEMORY[opr2] = MSB, MEMORY[opr2+1] = LSB (big-endian model)
-				// REG[opr1] = (MEMORY[opr2] << 8) | MEMORY[opr2+1]
-				REGS[opr1] = (char) (((MEMORY[opr2] & 0xFF) << 8) | (MEMORY[opr2 + 1] & 0xFF));
+			/** CPU MEMORY (MMU) DATA MANIPULATION **/
+			// LMH REG_A, REG_B
+			// Loads a 16-bit value from the memory address stored in a REG_B register into REG_A
+			// This was a mistake
+			if (opcode == LMH) {
+				// MEMORY[REG[opr2]] = MSB, MEMORY[REG[opr2] + 1] = LSB (big-endian model)
+				// REG[opr1] = (MEMORY[REG[opr2]] << 8) | MEMORY[REG[opr2]+1]
+				REGS[opr1] = (char) (((MEMORY[REGS[opr2]] & 0xFF) << 8) | (MEMORY[REGS[opr2] + 1] & 0xFF));
 				continue;
 			}
 			
-			// STO [MEM ADDRESS], REG_INDEX
-			// STOI [MEM ADDRESS], IMMEDIATE_VALUE
-			// Store 16-bit register value to two consecutive memory addresses (big-endian model).
-			// MEMORY[loc] (2x) = REGISTER
-			if (opcode == STO || opcode == STOI) {
-				char value = opcode == STOI ? opr2 : REGS[opr2];
-				MEMORY[opr1]     = (byte) ((value >> 8) & 0xFF); // high byte (cut off 2 low bytes)
-				MEMORY[opr1 + 1] = (byte) (value & 0xFF); // low byte (cut off 2 high bytes by AND)
+			// LMB REG_A, REG_B
+			// Loads a 8-bit value from the memory address stored in a REG_B register into REG_A
+			// This was a mistake
+			if (opcode == LMB) {
+				// REG[opr1] = (MEMORY[REG[opr2]] & 0xFF)
+				REGS[opr1] = (char) (MEMORY[REGS[opr2]] & 0xFF);
+				continue;
+			}
+			
+			// SMH REG_A, REG_B
+			// Stores a 16-bit value from register B into the memory address stored in register A
+			// basically MEMORY[register value A] (2x) = MEMORY[register value B)
+			if (opcode == SMH) {
+				char value = REGS[opr2];
+				MEMORY[REGS[opr1]]     = (byte) ((value >> 8) & 0xFF); // high byte
+				MEMORY[REGS[opr1] + 1] = (byte) (value & 0xFF); // low byte
+				continue;
+			}
+
+			// SMH REG_A, REG_B
+			// Stores a 8-bit value from register B into the memory address stored in register A
+			// basically MEMORY[register value A] = MEMORY[register value B)
+			if (opcode == SMB) {
+				MEMORY[REGS[opr1]] = (byte) (REGS[opr2] & 0xFF);
 				continue;
 			}
 			
@@ -496,7 +513,7 @@ public class FL516CPU {
 		}
 		
 		System.out.println("cpu stopped or crashed, heres da dump");
-		printRegisters(false);
+		printRegisters(true);
 		printMemory(true);
 	}
 	
