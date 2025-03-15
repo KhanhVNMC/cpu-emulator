@@ -1,8 +1,16 @@
+@data
+string   .str  "Hello World"
+number   .byte 10
+numbers  .byte 10, 20
+
+halfword .hword 0xCAFE, 'a', 100
+cumshot  .char  'a' ; this is just syntax sugar, its .byte anyway
+@text
 ; jump into the main entry
 call .test3
 hlt ; end program
 
-.test1:
+.test1: ; this cool
     ldi     R0, 100     ; load address 100 to R0 (memory)
     ldi     R1, 0xCAFE  ; load value CAFE into R1
     smh     R0, R1      ; store 0xCAFE (16-bit) into R0 (100)

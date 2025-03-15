@@ -6,9 +6,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -159,18 +161,18 @@ public class ShitwareAssembler {
 	public static void assembleOperand(boolean first, int type, String value) throws SyntaxError {
 		if (type == OPERAND_NUMBER) {
 			char num16_t = parseNumbers(first, value);
-			assembledProgram.add((byte) (num16_t >> 8));
-			assembledProgram.add((byte) (num16_t & 0xFF));
+			assembledTextSection.add((byte) (num16_t >> 8)); // high byte
+			assembledTextSection.add((byte) (num16_t & 0xFF)); // low byte (big endian)
 			return;
 		}
 		if (type == OPERAND_REGISTER) {
-			assembledProgram.add((byte) 0x00);
-			assembledProgram.add((byte) parseRegister(first, value));
+			assembledTextSection.add((byte) 0x00); // omitted
+			assembledTextSection.add((byte) parseRegister(first, value));
 			return;
 		}
-		// for -1
-		assembledProgram.add((byte) 0x00);
-		assembledProgram.add((byte) 0x00);
+		// for -1 (none)
+		assembledTextSection.add((byte) 0x00);
+		assembledTextSection.add((byte) 0x00);
 	}
 	
 	// Keeps track of the total number of bytes assembled so far. 
@@ -190,7 +192,25 @@ public class ShitwareAssembler {
 	// Stores the assembled machine code as a list of bytes. 
 	// Each instruction and its operands are converted into their corresponding 
 	// byte representation and stored in this list for output or execution.
-	public static List<Byte> assembledProgram = new ArrayList<>();
+	public static List<Byte> assembledTextSection = new ArrayList<>();
+	
+	
+	// Stores the assembled machine code as a list of bytes. 
+	// Each instruction and its operands are converted into their corresponding 
+	// byte representation and stored in this list for output or execution.
+	public static List<Byte> assembledDataSection = new ArrayList<>();
+	
+	// A mapping of data defined in the @data section to memory address (offset
+	// from the @text section)
+	public static Map<String, Integer> dataToAddress = new HashMap<>();
+	
+	public static Set<String> markerFound = new HashSet<>();
+	
+	static enum ParserContext {
+		DATA, TEXT
+	}
+	
+	public static ParserContext parseContext = ParserContext.TEXT;
 	
     /**
      * Assembles the given source code.
@@ -200,45 +220,85 @@ public class ShitwareAssembler {
 	public static void assemble(String fileName, String[] lines) throws RuntimeException {
 		for (int i = 0; i < lines.length; i++) {
 			int lineNumber = i + 1; // get the line number (+1)
-			String line = lines[i].trim(); // get the line (trim())
-			try {
-				// if the line starts with "."
-				if (line.startsWith(".")) {
-					String label = line.substring(1).trim();
-					// label colon is optional, but a warning is issued if omitted
-					boolean warn = true;
-					if (line.endsWith(":")) {
-						warn = false;
-						// remove the colon while parsing name, but raises a warning
-						label = label.substring(0, label.length() - 1);
-					}
-					// check for illegal chars
-					if (label.matches(".*[;,.:\\[\\]{}|*()%#].*")) {
-						throw new SyntaxError("Invalid label grammar, special characters detected!", eENTIRE_LINE);
-					}
-					// after passed the precheck, raise a warning if applicable
-					if (warn) {
-						System.err.println("File \"" + fileName + "\", line " + lineNumber + ", warning:");
-						System.err.println("   Recommended: Label '" + label + "' should end with a colon (':').");
-					}
-					// get the label address
-					labelsToAddress.put(label, ASSEMBLED_BYTES);
-					continue;
-				}
-				// parse the instruction
-				String[] parsedInstruction = parseLine(line);
-				if (parsedInstruction == null) continue; // ignored
-				parsedLines.put(lineNumber, parsedInstruction);
+			String line = lines[i].split(";")[0].trim(); // get the line (trim())
 			
-				// increment by 5
-				ASSEMBLED_BYTES += 5;
+			// check for marker
+			try {
+				if (line.startsWith("@")) {
+					String sectionMarker = line.substring(1).toLowerCase();
+					// validation (@data, @text allowed)
+					if (!sectionMarker.equals("data") && !sectionMarker.equals("text")) {
+						throw new SyntaxError("Invalid section marker! Only \"@data\" and \"@text\" are supported!", eENTIRE_LINE);
+					}
+					// check for duplication
+					if (markerFound.contains(sectionMarker)) {
+						throw new SyntaxError("Duplicated \"@" + sectionMarker + "\" section marker!", eENTIRE_LINE);
+					}
+					// switch context
+					parseContext = ParserContext.valueOf(sectionMarker.toUpperCase());
+					markerFound.add(sectionMarker); // add the section marker to track it
+				}
 			} catch (SyntaxError syntaxError) {
-				reportAssemblerError(fileName, "instruction parser", lineNumber, line, syntaxError);
+				reportAssemblerError(fileName, "section marker", lineNumber, line, syntaxError);
 				throw new RuntimeException("Aborted Task");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
+			
+			// for '@data' section
+			if (parseContext == ParserContext.DATA) {
+				try {
+					
+				} catch (SyntaxError syntaxError) {
+					reportAssemblerError(fileName, "data section mapper", lineNumber, line, syntaxError);
+					throw new RuntimeException("Aborted Task");
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			
+			// for '@text' section
+			if (parseContext == ParserContext.TEXT) {
+				try {
+					// if the line starts with "."
+					if (line.startsWith(".")) {
+						String label = line.substring(1).trim();
+						// label colon is optional, but a warning is issued if omitted
+						boolean warn = true;
+						if (line.endsWith(":")) {
+							warn = false;
+							// remove the colon while parsing name, but raises a warning
+							label = label.substring(0, label.length() - 1);
+						}
+						// check for illegal chars
+						if (label.matches(".*[;,.:\\[\\]{}|*()%#].*")) {
+							throw new SyntaxError("Invalid label grammar, special characters detected!", eENTIRE_LINE);
+						}
+						// after passed the precheck, raise a warning if applicable
+						if (warn) {
+							System.err.println("File \"" + fileName + "\", line " + lineNumber + ", warning:");
+							System.err.println("   Recommended: Label '" + label + "' should end with a colon (':').");
+						}
+						// get the label address
+						labelsToAddress.put(label, ASSEMBLED_BYTES);
+						continue;
+					}
+					// parse the instruction
+					String[] parsedInstruction = parseLine(line);
+					if (parsedInstruction == null) continue; // ignored
+					parsedLines.put(lineNumber, parsedInstruction);
+				
+					// increment by 5
+					ASSEMBLED_BYTES += 5;
+				} catch (SyntaxError syntaxError) {
+					reportAssemblerError(fileName, "instruction parser", lineNumber, line, syntaxError);
+					throw new RuntimeException("Aborted Task");
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
 		}
+		
 		// assemble the actual instructions
 		ASSEMBLED_BYTES = 0; // resets
 		assembleFromParsedLines(fileName, lines);
@@ -289,7 +349,7 @@ public class ShitwareAssembler {
 				}
 				
 				// append opcode
-				assembledProgram.add((byte) (opcode.getCode() & 0xFF));
+				assembledTextSection.add((byte) (opcode.getCode() & 0xFF));
 				// append first operand
 				assembleOperand(true , opcode.firstOperandType(), parsedInstruction[1]);
 				assembleOperand(false, opcode.secndOperandType(), parsedInstruction[2]);
@@ -381,7 +441,7 @@ public class ShitwareAssembler {
 
             // write to .o15 file
             try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-                for (byte b : assembledProgram) {
+                for (byte b : assembledTextSection) {
                     fos.write(b);
                 }
             }
