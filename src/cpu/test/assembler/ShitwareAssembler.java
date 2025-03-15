@@ -71,7 +71,7 @@ public class ShitwareAssembler {
 	public static char parseNumbers(boolean firstOperand, String operand) throws SyntaxError {
 		// ignore the prefix's case
 		operand = operand.toLowerCase();
-		String prefix = operand.substring(0, operand.length() < 2 ? 0 : 2); // get the first two characters
+		String prefix = operand.substring(0, operand.length() < 2 ? 0 : (operand.startsWith("'") ? 1 : 2)); // get the first two characters (or 1 if ')
 		
 		try {
 			switch (prefix) {
@@ -81,11 +81,20 @@ public class ShitwareAssembler {
 			case "0b": { // binary
 				return (char)(Integer.parseInt(operand.substring(2), 2) & 0xFFFF);
 			}
-			default: // decimals
+			case "'": { // character
+				String input = operand.substring(1);
+				if (input.indexOf('\'') == -1) { // a dangling character, missing closing quote (e.g. '1)
+					throw new NumberFormatException();
+				}
+				input = input.substring(0, input.length() - 1); // remove the closing quote
+				if (input.length() != 1) throw new NumberFormatException();
+				return (char)(((int) input.charAt(0)) & 0xFFFF);
+			}
+ 			default: // decimals
 				return (char)(Integer.parseInt(operand) & 0xFFFF);
 			}
 		} catch (Exception e) {
-			throw new SyntaxError("'" + operand + "' is not a valid number operand!\nValid examples: 0xCAFE, 0b10101, 128.", firstOperand ? eFIRST_OPR : eSECND_OPR);
+			throw new SyntaxError("\"" + operand + "\" is not a valid number operand!\nValid character literals: 'a', 'b'. Numeric examples: 0xCAFE, 0b10101, 128.", firstOperand ? eFIRST_OPR : eSECND_OPR);
 		}
 	}
 	

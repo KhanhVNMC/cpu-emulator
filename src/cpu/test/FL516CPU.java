@@ -513,7 +513,7 @@ public class FL516CPU {
 		}
 		
 		System.out.println("cpu stopped or crashed, heres da dump");
-		printRegisters(true);
+		printRegisters(false);
 		printMemory(true);
 	}
 	
@@ -538,8 +538,8 @@ public class FL516CPU {
 	
 	@SuppressWarnings("resource")
 	private static void printMemory(boolean hex) {
-		System.out.println("First 128 bytes of the program");
-		for (int i = 0; i < 128; i++) {
+		System.out.println("First 512 bytes of the program");
+		for (int i = 0; i < 512; i++) {
 			if (i % 16 == 0) System.out.println();
 			
 			boolean is_program = i < ROM.length;
