@@ -1,10 +1,38 @@
 @data ;hi
-arr       .space 0, 0
+    string   .str    "Hello World" ; hello
+    strlen   .hword  11  ; length
+    array    .pspace 128 ; array
+
 @text
 ; jump into the main entry
-call .test3
+call .testconst
 hlt ; end program
 
+.testconst:
+    ldi     R1, #string ; load the pointer of string
+    lmb     R2, R1 ; R2 should be 72 ('H') in ascii
+    ldi     R1, #strlen ; load the pointer of the number 11 in heap
+    lmh     R3, R1 ; R3 should be 11
+
+    ; store array 0th
+    ldi     R1, 0
+    ldi     R2, 0xAB
+    call    .heaparray_set ; same thing as array[0] = 0xAB;
+
+    ; store array 1st
+    ldi     R1, 1
+    ldi     R2, 0xCD
+    call    .heaparray_set ; same thing as array[1] = 0xCD;
+
+    ret
+
+.heaparray_set:
+    ldi     R0, #array
+    add     R0, R1 ; R1 = offset aka array[R1]
+    smb     R0, R2 ; array[R1] = R2;
+    ret
+
+hlt ; dont let it run past this if you dont want it to
 .test1: ; this cool
     ldi     R0, 100     ; load address 100 to R0 (memory)
     ldi     R1, 0xCAFE  ; load value CAFE into R1

@@ -1,4 +1,4 @@
-#ifdef FL15CC
+#ifdef FL1516_CC_ASM
 #define CXX_COMPILER "C"
 #endif
 int __main__() {

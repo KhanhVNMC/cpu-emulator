@@ -194,11 +194,25 @@ public class InstructionsResolver {
 						// attempt to find the label assigned address
 						Integer addressMap = labelsToAddress.get(operand.substring(1).trim());
 						if (addressMap == null) {
-							throw new SyntaxError("Undefined label '" + operand + "'\nEnsure the label is defined somewhere in the source.", oprIndex);
+							throw new SyntaxError("Undefined label '" + operand + "' found\nEnsure the label is defined somewhere in the source.", oprIndex);
 						}
 						// override the label stirng by the actual address
 						parsedInstruction[oprIndex] = String.valueOf(addressMap);
 					}
+				}
+				
+				// replaces any #[constant defined in @data] found in an instruction (any)
+				for (int oprIndex = 1; oprIndex <= 2; oprIndex++) {
+					String operand = parsedInstruction[oprIndex];
+					if (operand == null || !operand.startsWith("#")) continue;
+					// attempt to find the constant assigned address (after being processed)
+					// to calculate the actual address, get the ASSEMBLED_BYTES result from PASS 1 and add it in
+					Integer addressMap = DataSectionResolver.dataToAddressOffset.get(operand.substring(1).trim());
+					if (addressMap == null) {
+						throw new SyntaxError("Undefined constant literal '" + operand + "' found\nEnsure that the constant is defined in the @data section!", oprIndex);
+					}
+					// override the constant refereral stirng by the actual memory address
+					parsedInstruction[oprIndex] = String.valueOf(ASSEMBLED_BYTES_PASS_1 + addressMap);
 				}
 				
 				// prechecks for the two operands

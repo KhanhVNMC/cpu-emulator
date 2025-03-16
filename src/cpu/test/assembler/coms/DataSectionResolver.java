@@ -1,5 +1,6 @@
 package cpu.test.assembler.coms;
 
+import cpu.test.assembler.OpcodeInfo;
 import cpu.test.assembler.SyntaxError;
 import static cpu.test.assembler.ShitwareAssembler.*;
 import static cpu.test.assembler.SyntaxError.*;
@@ -23,6 +24,7 @@ public class DataSectionResolver {
 	public static final String TYPE_UI8     = ".uint8";
 	public static final String TYPE_UI16    = ".uint16";
 	// for arrays
+	public static final String TYPE_PHANTOM_SPACE   = ".pspace";
 	public static final String TYPE_SPACE   = ".space";
 	
 	static final HashSet<String> AVAILABLE_TYPES = new HashSet<>(Set.of(
@@ -35,6 +37,7 @@ public class DataSectionResolver {
 		TYPE_UI8,
 		TYPE_UI16,
 		// array
+		TYPE_PHANTOM_SPACE,
 		TYPE_SPACE
 	));
 	
@@ -46,8 +49,14 @@ public class DataSectionResolver {
 	// A mapping of data defined in the @data section to memory address (offset
 	// from the @text section)
 	public static Map<String, Integer> dataToAddressOffset = new HashMap<>();
-	
+	// purely for error-reporting
+	public static Map<String, Integer> dataToLineIndex = new HashMap<>();
+
+	// the current pointer for allocating data
 	public static int ASSEMBLED_DATA = 0;
+	
+	// the flag to restrict normal allocations after phantom allocation
+	private static boolean hasPhantomAllocation = false;
 	
 	public static void parseDataSectionLine(String fileName, String original, int lineNumber) {
 		// ignore comments and blank lines
@@ -67,9 +76,29 @@ public class DataSectionResolver {
 	        String directive 	= matcher.group(2); // type
 	        String valuesPart 	= matcher.group(3); // declaration
 	        
+	        // prevent name collision
+	        if (dataToLineIndex.containsKey(label)) {
+	            throw new SyntaxError("Conflicting identifier: '" + label + "'.\nThis directive was first defined at line " + dataToLineIndex.get(label) + ".", eOPCODE);
+	        }
+	        
+	        // prevent the user from going haywire, defining whatever the s**t they wanted
+	        if (AVAILABLE_TYPES.contains(label) || OpcodeInfo.OPCODE_INFO.get(label.toUpperCase()) != null) {
+	            throw new SyntaxError("Illegal identifier '" + label + "' detected.\nThe name conflicts with a reserved keyword or opcode.\n", eOPCODE);
+	        }
+	        
+	        // unknown literal types
 	        if (!AVAILABLE_TYPES.contains(directive)) {
 				throw new SyntaxError("Unknown constant literal type \"" + directive + "\"", eFIRST_OPR);
 	        }
+	        
+	        // prevent real allocation after phantom ones (you can still chain phantoms together)
+			if (hasPhantomAllocation && !directive.equals(TYPE_PHANTOM_SPACE)) {
+				// this is to prevent pointer mishap or pointer that points to absolutely
+				// nothing (VERY BAD)
+				throw new SyntaxError("Non-phantomic constants cannot be allocated after a phantom allocation.\nEnsure that all phantom allocations are positioned at the end of the @data section.", eENTIRE_LINE);
+			}
+			
+			dataToLineIndex.put(label, lineNumber);
 	        
 	        // assemble strings (complex)
 			if (directive.equals(TYPE_STRING) || directive.equals(TYPE_CSTRING)) {
@@ -99,30 +128,43 @@ public class DataSectionResolver {
 			String[] parts = valuesPart.split(",(?=(?:[^']*'[^']*')*[^']*$)");
 			
 			// assemble an empty array with specified sizes
-			if (directive.equals(TYPE_SPACE)) {
+			if (directive.equals(TYPE_SPACE) || directive.equals(TYPE_PHANTOM_SPACE)) {
 				// the address of the array's head
 				dataToAddressOffset.put(label, ASSEMBLED_DATA);
 				try {
 					// read "how many elements should we create"
 					char elements = parseNumeric(parts[0].trim());
-					if (elements > 512) { // we do not allow to reserve more than 512 bytes
-						throw new SyntaxError("Unable to reserve " + (int)elements + " elements! The maximum limit is 512.", eENTIRE_LINE);
+					if (elements == 0 || elements > 512) { // we do not allow to reserve more than 512 bytes
+						throw new SyntaxError("Unable to reserve " + (int)elements + " elements! The minimum is 1 and the maximum limit is 512.", eENTIRE_LINE);
 					}
 					// reserve n elements (bytes); regardless of if we actually allocate or not
 					ASSEMBLED_DATA += elements; // 1 byte-wide
+					
+					// phantom space (space that exists without actually allocating anything)
+					if (directive.equals(TYPE_PHANTOM_SPACE)) {
+						// only 1 argument
+						if (parts.length != 1) {
+							throw new SyntaxError("'.pspace' (Phantom space) allocation expected one argument: [size], got " + parts.length + " instead.", eENTIRE_LINE);
+						}
+						// turn on the flag
+						hasPhantomAllocation = true;
+						return;
+					}
+					
+					// normal .space directive with actual memory allocation
 					// filler (or whatever)
-					if (parts.length == 2) {
+					if (parts.length <= 2) {
 						try {
 							// read "what should we fill the holes with"
-							char assignment = parseNumeric(parts[1].trim());
+							char assignment = parts.length == 1 ? 0x0 : parseNumeric(parts[1].trim());
 							for (int i = 0; i < elements; i++) {
 								assembledDataSection.add((byte) (assignment & 0xFF)); // only take one byte
 							}
 						} catch (Exception e) {
 							throw new SyntaxError("Unable to fill the reserved memory region with \"" + parts[1].trim() + "\". Value is not a valid numeric!\nNumeric examples: 0xCAFE, 0b10101, 128.", eENTIRE_LINE);
 						}
-					} else if (parts.length > 2) { // too long
-						throw new SyntaxError("'.space' allocation expected at most 2 arguments: size, [filler], got " + parts.length + " instead.", eENTIRE_LINE);
+					} else { // too long or too short
+						throw new SyntaxError("'.space' allocation at most 2 arguments: [size], (filler), got " + parts.length + " instead.", eENTIRE_LINE);
 					}
 				} catch (Exception e) {
 					if (e instanceof SyntaxError) {

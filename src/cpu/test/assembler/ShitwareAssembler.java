@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import static cpu.test.assembler.OpcodeInfo.*;
 import static cpu.test.assembler.SyntaxError.*;
@@ -21,6 +20,7 @@ public class ShitwareAssembler {
 	// This is used to determine instruction addresses in memory, 
 	// particularly for labels (directives) and branching instructions.
 	public static int ASSEMBLED_BYTES = 0; 	
+	public static int ASSEMBLED_BYTES_PASS_1 = 0;
 	
 	public static Set<String> markerFound = new HashSet<>();
 	
@@ -76,9 +76,9 @@ public class ShitwareAssembler {
 			}
 		}
 		
+		// convert offsets into actual memory location by + ASSEMBLED_BYTES
+		ASSEMBLED_BYTES_PASS_1 = ASSEMBLED_BYTES;
 		// assemble the actual instructions
-		System.out.println(DataSectionResolver.assembledDataSection);
-		System.out.println(DataSectionResolver.dataToAddressOffset);
 		ASSEMBLED_BYTES = 0; // resets
 		InstructionsResolver.assembleFromParsedLines(fileName, lines);
 	}
@@ -238,6 +238,10 @@ public class ShitwareAssembler {
             // write to .o file
             try (FileOutputStream fos = new FileOutputStream(outputFile)) {
                 for (byte b : InstructionsResolver.assembledTextSection) {
+                    fos.write(b);
+                }
+                
+                for (byte b : DataSectionResolver.assembledDataSection) {
                     fos.write(b);
                 }
             }
