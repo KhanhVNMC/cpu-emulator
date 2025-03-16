@@ -12,10 +12,11 @@ public class FL516CPU {
 	public static final int LDI  = 0x02; // load immediate (load a value to reg)
 	public static final int LMH  = 0x03; // load a 16-bit (2 bytes; HALF-WORD) value from the memory address stored in a register to a register
 	public static final int LMB  = 0x04; // load a 8-bit (1 byte; HALF-WORD) value from the memory address stored in a register to a register
-	public static final int SMH  = 0x06; // stores a 16-bit (WORD) value from a register into the memory address stored in another register.
-	public static final int SMB  = 0x05; // stores a 8-bit value (HALFWORD) from a register into the memory address stored in another register.
-	public static final int BLNK = 0x08; // blank instruction
-	
+	public static final int SMH  = 0x05; // stores a 16-bit (WORD) value from a register into the memory address stored in another register.
+	public static final int SMB  = 0x06; // stores a 8-bit value (HALFWORD) from a register into the memory address stored in another register.
+	public static final int VMS  = 0x07; // switch addressing mode to VRAM
+	public static final int WMS  = 0x08; // switch addressing mode to RAM
+
 	/* arithmetic & bitwise controls*/
 	// ADDITION
 	public static final int ADD  = 0x10;
@@ -78,9 +79,12 @@ public class FL516CPU {
 	// special registers (convention)
 	static int      STACK_PTR_LOC     = 9; // location in the registers
 	
-	// 16-bit addressable space
-	static byte[]   MEMORY       = new byte[0xFFFF + 1]; // basically 65536 addressable bytes
-	static int      STACK_REGION = MEMORY.length - 1; // or 0xFFFF, the stack grows downward
+	// 16-bit addressable space (2 banks -- realistic)
+	// bank 0 is used for the entire CPU side of things
+	// bank 1 is used as video memory (VRAM)
+	// only LMH, LMB, SMH, SMB are affected by this
+	static byte[][] MEMORY       = new byte[2][0xFFFF + 1]; // basically 65536 addressable bytes
+	static int      STACK_REGION = MEMORY[0].length - 1; // or 0xFFFF, the stack grows downward
 	
 	// special CPU flags and program counter
 	/** True if the last CMP operation is zero */
@@ -91,6 +95,14 @@ public class FL516CPU {
 	static boolean  OFL = false;   // overflow flag
 	/** The program counter (instruction pointer), point at what byte (ISA) to execute (multiples of 5) */
 	static int      PROGRAM_COUNTER = 0;
+	
+	// declarations
+	static final int RAM = 0;
+	static final int VRAM = 1;
+	// there're two "64KB" ram "chips", one for normal CPU memory and one for the
+	// "VPS" (video processing subroutine; which is just the CPU) memory (VRAM)
+	// 0 for working ram, 1 for vram
+	static int 		 MEMORY_MODE = RAM; // default memory mode is WORKING RAM, change to 1 for VRAM
 	
 	// for the java emulator
 	private static String[] registersName = {
@@ -109,12 +121,12 @@ public class FL516CPU {
 		// the operation below writes to it
 		// 00 00 FF
 		//    ^^ written the low byte and move the pointer to the left (-1)
-		MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 & 0xFF); // low byte
+		MEMORY[RAM][REGS[STACK_PTR_LOC]--]   = (byte) (value16 & 0xFF); // low byte
 		
 		// the operation below writes to it
 		// 00 FF FF
 		// ^^ written the HIGH byte and move the pointer to the left, ready for the next one
-		MEMORY[REGS[STACK_PTR_LOC]--]   = (byte) (value16 >> 8); // high byte
+		MEMORY[RAM][REGS[STACK_PTR_LOC]--]   = (byte) (value16 >> 8); // high byte
 	}
 	
 	/** pop a value from a stack (moves RSP up) and return it */
@@ -134,7 +146,7 @@ public class FL516CPU {
 		// ^ current RSP is at "0"
 		// this increments by 1 and get CA, increment by one again and get FE, and then assign to the register
 		// after "POP", RSP is now at 2, which is the bottom of the stack
-		return (char) ((MEMORY[++REGS[STACK_PTR_LOC]] << 8) | (MEMORY[++REGS[STACK_PTR_LOC]] & 0xFF));
+		return (char) ((MEMORY[RAM][++REGS[STACK_PTR_LOC]] << 8) | (MEMORY[RAM][++REGS[STACK_PTR_LOC]] & 0xFF));
 	}
 	
 	// initialize the stack register and start the processor
@@ -150,13 +162,13 @@ public class FL516CPU {
 			if (PAUSED) continue;
 			
 			// fetch instructions (5 bytes)
-			int opcode  = MEMORY[PROGRAM_COUNTER++] & 0xFF; // prevent sign extension
+			int opcode  = MEMORY[RAM][PROGRAM_COUNTER++] & 0xFF; // prevent sign extension
 			// merge two consecutive bytes into one 16-bit operand
 			// example: CA, FE
 			// 1) CA << 8 => CA00  (CA left by 8 bits, pad 8 bits to the right)
 			// 2) CA00 | (FE & 0xFF) => CAFE (OR merges) [0xFF to prevent sign extension, only get the 2 bytes)
-			char opr1   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | (MEMORY[PROGRAM_COUNTER++] & 0xFF));
-			char opr2   = (char) ((MEMORY[PROGRAM_COUNTER++] << 8) | (MEMORY[PROGRAM_COUNTER++] & 0xFF));
+			char opr1   = (char) ((MEMORY[RAM][PROGRAM_COUNTER++] << 8) | (MEMORY[RAM][PROGRAM_COUNTER++] & 0xFF));
+			char opr2   = (char) ((MEMORY[RAM][PROGRAM_COUNTER++] << 8) | (MEMORY[RAM][PROGRAM_COUNTER++] & 0xFF));
 			
 			System.out.println("[CPU | PC=" + PROGRAM_COUNTER +"] OPCODE: " + String.format("%02X", (int)opcode) 
 				+ " OPERANDS: " + String.format("%04X", (int)opr1) 
@@ -176,6 +188,14 @@ public class FL516CPU {
 			// NOP 00 00
 			// empty instruction, use to fill up the processor
 			if (opcode == NOP) {
+				continue;
+			}
+			
+			// switch memory addressing mode
+			if (opcode == VMS || opcode == WMS) {
+				// if VMS (Video memory switch), switch to VRAM addressing mode,
+				// to switch back, use WMS (Working memory switch)
+				MEMORY_MODE = opcode == VMS ? 1 : 0;
 				continue;
 			}
 			
@@ -312,7 +332,7 @@ public class FL516CPU {
 			if (opcode == LMH) {
 				// MEMORY[REG[opr2]] = MSB, MEMORY[REG[opr2] + 1] = LSB (big-endian model)
 				// REG[opr1] = (MEMORY[REG[opr2]] << 8) | MEMORY[REG[opr2]+1]
-				REGS[opr1] = (char) (((MEMORY[REGS[opr2]] & 0xFF) << 8) | (MEMORY[REGS[opr2] + 1] & 0xFF));
+				REGS[opr1] = (char) (((MEMORY[MEMORY_MODE][REGS[opr2]] & 0xFF) << 8) | (MEMORY[MEMORY_MODE][REGS[opr2] + 1] & 0xFF));
 				continue;
 			}
 			
@@ -321,7 +341,7 @@ public class FL516CPU {
 			// This was a mistake
 			if (opcode == LMB) {
 				// REG[opr1] = (MEMORY[REG[opr2]] & 0xFF)
-				REGS[opr1] = (char) (MEMORY[REGS[opr2]] & 0xFF);
+				REGS[opr1] = (char) (MEMORY[MEMORY_MODE][REGS[opr2]] & 0xFF);
 				continue;
 			}
 			
@@ -330,8 +350,8 @@ public class FL516CPU {
 			// basically MEMORY[register value A] (2x) = MEMORY[register value B)
 			if (opcode == SMH) {
 				char value = REGS[opr2];
-				MEMORY[REGS[opr1]]     = (byte) ((value >> 8) & 0xFF); // high byte
-				MEMORY[REGS[opr1] + 1] = (byte) (value & 0xFF); // low byte
+				MEMORY[MEMORY_MODE][REGS[opr1]]     = (byte) ((value >> 8) & 0xFF); // high byte
+				MEMORY[MEMORY_MODE][REGS[opr1] + 1] = (byte) (value & 0xFF); // low byte
 				continue;
 			}
 
@@ -339,7 +359,7 @@ public class FL516CPU {
 			// Stores a 8-bit value from register B into the memory address stored in register A
 			// basically MEMORY[register value A] = MEMORY[register value B)
 			if (opcode == SMB) {
-				MEMORY[REGS[opr1]] = (byte) (REGS[opr2] & 0xFF);
+				MEMORY[MEMORY_MODE][REGS[opr1]] = (byte) (REGS[opr2] & 0xFF);
 				continue;
 			}
 			
@@ -545,24 +565,24 @@ public class FL516CPU {
 			boolean is_program = i < ROM.length;
 			var std = is_program ? System.err : System.out;
 			
-			std.printf(hex ? "%02X " : "%06d ", MEMORY[i]);
+			std.printf(hex ? "%02X " : "%06d ", MEMORY[RAM][i]);
 		}
 		System.out.println();
 		System.out.println("Last 128 bytes of the program");
-		for (int i = MEMORY.length - 128; i < MEMORY.length; i++) {
+		for (int i = MEMORY[0].length - 128; i < MEMORY[0].length; i++) {
 			if (i % 16 == 0) System.out.println();
 			
 			boolean is_program = i < ROM.length;
 			var std = is_program ? System.err : System.out;
 			
-			std.printf(hex ? "%02X " : "%06d ", MEMORY[i]);
+			std.printf(hex ? "%02X " : "%06d ", MEMORY[RAM][i]);
 		}
 		System.out.println();
 	}
 	
 	public static void copy_rom_to_ram() {
 		for (int i = 0; i < ROM.length; ++i) {
-			MEMORY[i] = (byte) (ROM[i] & 0xFF);
+			MEMORY[RAM][i] = (byte) (ROM[i] & 0xFF);
 		}
 	}
 	

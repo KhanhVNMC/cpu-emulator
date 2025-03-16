@@ -2,11 +2,15 @@
     "scopeName": "source.fl516",
     "patterns": [
         {
-            "name": "keyword.control.fl516",
-            "match": "(?i)\\b(MOV|LDI|LMB|LMH|SMH|SMB|ADD|ADDI|SUB|SUBI|MUL|MULI|DIV|DIVI|MOD|MODI|OR|ORI|XOR|XORI|SHR|SHRI|SHL|SHLI|NOT|PUSH|IPUSH|POP|HLT|JMP|CALL|RET|CMP|JEQ|JNE|JLT|JGT|JGE|JLE|NOP|DBGP|BLNK)\\b"
+            "name": "support.type",
+            "match": "@(data|text)\\b"
         },
         {
-            "name": "variable.register.fl516",
+            "name": "keyword.control.fl516",
+            "match": "(?i)\\b(WMS|VMS|MOV|LDI|LMB|LMH|SMH|SMB|ADD|ADDI|SUB|SUBI|MUL|MULI|DIV|DIVI|MOD|MODI|AND|ANDI|OR|ORI|XOR|XORI|SHR|SHRI|SHL|SHLI|NOT|PUSH|IPUSH|POP|HLT|JMP|CALL|RET|CMP|JEQ|JNE|JLT|JGT|JGE|JLE|NOP|DBGP|BLNK)\\b"
+        },
+        {
+            "name": "variable.other.fl516",
             "match": "(?i)\\b(R[0-8]|RSP)\\b"
         },
         {
@@ -14,15 +18,19 @@
             "match": "\\b(0x[0-9A-Fa-f]+|0b[01]+|\\d+)\\b"
         },
         {
+            "name": "storage.modifier",
+            "match": "\\.(cstr|str|byte|char|hword|uint8|uint16|pspace|space)"
+        },
+        {
             "name": "entity.name.function.fl516",
             "match": "\\.(\\w+):?"
         },
         {
-            "name": "constant.character.single-quote.fl516",
+            "name": "string.quoted.single.fl516",
             "match": "'[^']*'"
         },
         {
-            "name": "constant.character.double-quote.fl516",
+            "name": "string.quoted.double.fl516",
             "match": "\"[^\"]*\""
         },
         {

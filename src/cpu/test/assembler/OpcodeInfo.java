@@ -69,10 +69,12 @@ public class OpcodeInfo {
 		OPCODE_INFO.put("JGE",  new Opcode(JGE,  List.of(OPERAND_NUMBER)));
 		OPCODE_INFO.put("CALL", new Opcode(CALL, List.of(OPERAND_NUMBER)));
 		OPCODE_INFO.put("RET",  new Opcode(RET,  List.of()));
+		// memory management unit
+		OPCODE_INFO.put("VMS",  new Opcode(VMS, List.of()));
+		OPCODE_INFO.put("WMS",  new Opcode(WMS, List.of()));
 		// reserved
 		OPCODE_INFO.put("NOP",  new Opcode(NOP,  List.of()));
 		OPCODE_INFO.put("DBGP", new Opcode(DBGP, List.of()));
-		OPCODE_INFO.put("BLNK", new Opcode(BLNK, List.of()));
 	}
 	
 	public static class Opcode {
