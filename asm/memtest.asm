@@ -1,10 +1,5 @@
-@data
-string   .str  "Hello World"
-number   .byte 10
-numbers  .byte 10, 20
-
-halfword .hword 0xCAFE, 'a', 100
-cumshot  .char  'a' ; this is just syntax sugar, its .byte anyway
+@data ;hi
+arr       .space 0, 0
 @text
 ; jump into the main entry
 call .test3
@@ -32,11 +27,11 @@ hlt ; same thing
 .test3:
     ldi     R0, 255     ; first address (arr[0])
     mov     R2, R0      ; store address for later use
-    ldi     R1, 'a'     ; first number
+    ldi     R1, ':'     ; first number
     call    .grow_array
-    ldi     R1, 'b'
+    ldi     R1, 0xCAFE
     call    .grow_array
-    ldi     R1, 30
+    ldi     R1, 0b1010
     call    .grow_array
     ldi     R1, 40
     call    .grow_array

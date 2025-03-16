@@ -124,7 +124,7 @@ public class FL516CPU {
 		// if the stack pointer exceeds the minimum valid address (i.e., STACK_REGION - 2), warn
 		// 00 00 00 CA FE
 		//       ^^ the pointer must be at least HERE to be able to pop
-		if (REGS[STACK_PTR_LOC] > STACK_REGION - 2) {
+		if (REGS[STACK_PTR_LOC] > STACK_REGION - Character.BYTES) {
 			// display a warning message if the stack pointer is too high, which could lead to an underflow condition when popping
 			System.err.println("Stack underflow! instruction not fulfilled");
 			throw new EmptyStackException();

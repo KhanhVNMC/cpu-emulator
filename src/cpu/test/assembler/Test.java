@@ -1,85 +1,194 @@
 package cpu.test.assembler;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Test {
-    public static void main(String[] args) {
-        String[] lines = {
-            "string  				 .str  \"Hello, World\"",
-            "number   .byte 10",
-            "numbers  .nigga 10, 20",
-            "halfword .hword 0xCAFE, 'a', 100",
-            "cumshot  .char  'a' ; this is just syntax sugar, its .byte anyway"
-        };
 
-        for (String originalLine : lines) {
-            // Remove comments (everything after ';')
-            String line = originalLine.split(";")[0].trim();
-            if (line.isEmpty()) continue;
+    /** Maps directives to their corresponding types */
+    private static final Map<String, String> directiveToType = new HashMap<>();
 
-            // Expect at least three parts: name, type and values
-            String[] parts = line.split("\\s+", 3);
-            if (parts.length < 3) {
-                System.out.println("ERROR: Not enough tokens in line: " + line);
-                continue;
+    static {
+        directiveToType.put(".str", "string");
+        directiveToType.put(".byte", "byte");
+        directiveToType.put(".char", "byte"); // .char is syntax sugar for .byte
+        directiveToType.put(".hword", "hword");
+    }
+
+    public static String stripInlineComment(String line) throws SyntaxError {
+    	boolean inQuote = false;
+    	char[] chars = line.toCharArray();
+    	for (int i = 0; i < line.length(); i++) {
+    		char c = chars[i];
+    		if (c == '\'' || c == '"') {
+    			inQuote = !inQuote;
+    		}
+    		if (inQuote) continue;
+    		if (c == ';') {
+    			return line.substring(0, i);
+    		}
+    	}
+    	return line;
+    }
+    
+    public static void main(String[] args) throws SyntaxError {
+    	System.out.println(stripInlineComment("hello \""));
+    }
+
+    /** Processes a single line of input */
+    private static void processLine(String line) {
+        // Remove comments and trim
+        int commentIndex = line.indexOf(';');
+        if (commentIndex != -1) {
+            line = line.substring(0, commentIndex);
+        }
+        line = line.trim();
+        if (line.isEmpty()) {
+            return;
+        }
+
+        // Parse label, directive, and values using regex
+        Pattern pattern = Pattern.compile("^(\\w+)\\s+(\\.\\w+)\\s+(.*)$");
+        Matcher matcher = pattern.matcher(line);
+        if (!matcher.matches()) {
+            System.err.println("Invalid line format: " + line);
+            return;
+        }
+
+        String label = matcher.group(1);
+        String directive = matcher.group(2);
+        String valuesPart = matcher.group(3);
+
+        // Get type from directive
+        String type = directiveToType.get(directive);
+        if (type == null) {
+            System.err.println("Unknown directive: " + directive);
+            return;
+        }
+
+        // Parse values based on directive
+        List<Object> values;
+        if (directive.equals(".str")) {
+            String str = parseStringLiteral(valuesPart);
+            values = new ArrayList<>();
+            for (char c : str.toCharArray()) {
+                values.add(c); // Store as Character objects
             }
-            String name = parts[0];
-            String typeToken = parts[1];
-            // Remove leading dot if present
-            String type = typeToken.startsWith(".") ? typeToken.substring(1) : typeToken;
-            String valuesPart = parts[2].trim();
-
-            // Process based on type
-            if (type.equals("str")) {
-                // For .str, support only one string literal. If there's a comma, that's an error.
-                if (valuesPart.contains(",")) {
-                    System.out.println("ERROR: Multiple string literals not supported for " + name);
-                    continue;
+        } else {
+            String[] parts = valuesPart.split(",(?=(?:[^']*'[^']*')*[^']*$)");
+            values = new ArrayList<>();
+            for (String part : parts) {
+                part = part.trim();
+                if (!part.isEmpty()) {
+                    values.add(parseValue(part));
                 }
-                if (valuesPart.startsWith("\"") && valuesPart.endsWith("\"") && valuesPart.length() >= 2) {
-                    // Remove the surrounding double quotes
-                    String literal = valuesPart.substring(1, valuesPart.length() - 1);
-                    char[] charArray = literal.toCharArray();
-                    System.out.println("name: \"" + name + "\"");
-                    System.out.println("type: \"" + type + "\"");
-                    System.out.println("values: " + Arrays.toString(charArray));
-                } else {
-                    System.out.println("ERROR: Invalid string literal for " + name);
+            }
+        }
+
+        // Print in required format
+        System.out.println("name: \"" + label + "\"");
+        System.out.println("type: \"" + type + "\"");
+        System.out.print("values: [");
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) {
+                System.out.print(", ");
+            }
+            Object val = values.get(i);
+            if (val instanceof Character) {
+                System.out.print(escapeChar((char) val));
+            } else {
+                System.out.print(val);
+            }
+        }
+        System.out.println("]");
+    }
+
+    /** Parses a string literal, handling escape sequences */
+    private static String parseStringLiteral(String s) {
+        if (!s.startsWith("\"") || !s.endsWith("\"")) {
+            throw new IllegalArgumentException("String literal must be quoted: " + s);
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean escape = false;
+        for (int i = 1; i < s.length() - 1; i++) {
+            char c = s.charAt(i);
+            if (escape) {
+                switch (c) {
+                	case '0': sb.append("\0"); break;
+                    case 'n': sb.append('\n'); break;
+                    case 't': sb.append('\t'); break;
+                    case '\\': sb.append('\\'); break;
+                    case '"': sb.append('"'); break;
+                    default: throw new IllegalArgumentException("Invalid escape sequence: \\" + c);
+                }
+                escape = false;
+            } else if (c == '\\') {
+                escape = true;
+            } else {
+                sb.append(c);
+            }
+        }
+        if (escape) {
+            throw new IllegalArgumentException("Unterminated escape sequence in: " + s);
+        }
+        return sb.toString();
+    }
+
+    /** Parses a single value (number or character literal) */
+    private static Object parseValue(String s) {
+        s = s.trim();
+        if (s.startsWith("'")) {
+            // Character literal
+            if (s.length() == 3 && s.endsWith("'")) {
+                return s.charAt(1);
+            } else if (s.length() == 4 && s.charAt(1) == '\\' && s.endsWith("'")) {
+                char c = s.charAt(2);
+                switch (c) {
+                    case 'n': return '\n';
+                    case 't': return '\t';
+                    case '\\': return '\\';
+                    case '\'': return '\'';
+                    default: throw new IllegalArgumentException("Invalid escape in char: " + s);
                 }
             } else {
-                // For other types: .byte, .hword, .char, etc.
-                // Split the values on comma
-                String[] tokens = valuesPart.split(",");
-                List<Object> values = new ArrayList<>();
-                for (String token : tokens) {
-                    token = token.trim();
-                    if (token.isEmpty()) continue;
-                    // Check if it's a char literal (e.g. 'a')
-                    if (token.startsWith("'") && token.endsWith("'") && token.length() >= 3) {
-                        // Note: This simple approach doesn't handle escape sequences.
-                        values.add(token.charAt(1));
-                    } else {
-                        // Assume it's a numeric literal.
-                        try {
-                            int num;
-                            if (token.startsWith("0x") || token.startsWith("0X")) {
-                                num = Integer.decode(token); // works for hexadecimal numbers
-                            } else {
-                                num = Integer.parseInt(token);
-                            }
-                            values.add(num);
-                        } catch (NumberFormatException e) {
-                            System.out.println("ERROR: Invalid numeric literal: " + token);
-                        }
-                    }
-                }
-                System.out.println("name: \"" + name + "\"");
-                System.out.println("type: \"" + type + "\"");
-                System.out.println("values: " + values);
+                throw new IllegalArgumentException("Invalid char literal: " + s);
             }
-            System.out.println(); // blank line between entries
+        } else if (s.startsWith("0x")) {
+            // Hexadecimal number
+            try {
+                return Integer.parseInt(s.substring(2), 16);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid hex number: " + s);
+            }
+        } else {
+            // Decimal number
+            try {
+                return Integer.parseInt(s);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid decimal number: " + s);
+            }
+        }
+    }
+
+    /** Escapes a character for printing as a Java literal */
+    private static String escapeChar(char c) {
+        switch (c) {
+            case '\n': return "'\\n'";
+            case '\t': return "'\\t'";
+            case '\\': return "'\\\\'";
+            case '\'': return "'\\''";
+            default:
+                if (Character.isISOControl(c)) {
+                    return String.format("'\\u%04x'", (int) c);
+                } else {
+                    return "'" + c + "'";
+                }
         }
     }
 }
