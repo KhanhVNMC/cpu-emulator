@@ -5,9 +5,31 @@
 
 @text
 ; jump into the main entry
-call .testconst
+vms
+ldi  r1, 1
+ldi  r2, 0b101010
+call .arr_set
 hlt ; end program
 
+; r2 = color data (11_11_11_00)
+; r1 = index
+.arr_set:
+    muli    r1, 6
+    mov     r3, r1 ; offset
+    mov     r4, r1 ; byte_index
+    modi    r3, 8  ; 6*i % 8
+    divi    r4, 8  ; 6*i / 8
+    ; r3 = offset ; r4 = byte_index
+    ; r5 = the current color data
+    mov     r5, r2 ; r5 = r2
+    shr     r5, r3 ; r5 >> byte_index
+    hlt;
+    lmb     r6, r4 ; r6 = *r4
+    or      r6, r5 ; merge r6 with the calculated shit??
+    smb     r4, r6
+    ret
+
+hlt
 .testconst:
     ldi     R1, #string ; load the pointer of string
     lmb     R2, R1 ; R2 should be 72 ('H') in ascii

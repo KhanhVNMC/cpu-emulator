@@ -33,26 +33,22 @@ hlt
 .arr_set
     muli    r1, 6
     mov     r3, r1 ; offset
-    mov     r4, r1 ; byte index
+    mov     r4, r1 ; byte_index
     mod     r3, 8  ; 6*i % 8
     div     r4, 8  ; 6*i / 8
-    ; r5 will be the scapegoat
-    lmb     r5, r4 ; load byte at "byte index" to r4
-    mov     r6, r2 ; r6 will be the placeholder of R2
-    shr     r6, r3 ; cut off X bytes from the tail of R2
-    or      r5, r6 ; merge first byte + part of byte 2 together
-    smb     r4, r5 ; write the byte back to index
-    ; write second byte (depends)
-    ldi     r5, 2  ; compare
-    cmp     r3, r5 
-    jgt     .write_sec_byte
-    ret
+    ; r3 = offset ; r4 = byte_index
+    ; r5 = the current color data
+    mov     r5, r2 ; r5 = r2
+    shr     r5, r3 ; r5 >> byte_index
+    lmb     r6, r4 ; r6 = *r4
+    or      r6, r5 ; merge r5 with the calculated shit??
+    
 
-.write_sec_byte
-    addi    r4, 1
-    ldi     r5, 8
-    sub     r5, r3
-    ret
 
+.bitmask_gen
+    ldi     r7, 1
+    shli    R7, 4
+    subi    R7, 1
+    ret
     
     

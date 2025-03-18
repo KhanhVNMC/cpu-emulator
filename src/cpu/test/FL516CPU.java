@@ -106,7 +106,7 @@ public class FL516CPU {
 	
 	// for the java emulator
 	private static String[] registersName = {
-		"AX", "BX", "CX", "DX", "EX", "FX", "GX", "HX", "IX", // 9 all purpose registers
+		"0 ", "1 ", "2 ", "3 ", "4 ", "5 ", "6 ", "7 ", "8 ", // 9 all purpose registers
 		"SP", // stack pointer
 	};
 	
@@ -492,6 +492,7 @@ public class FL516CPU {
 			// reg1 = reg1 >> reg2 (or IV)
 			if (opcode == SHR || opcode == SHRI) {
 				REGS[opr1] >>= (opcode == SHRI ? opr2 : REGS[opr2]);
+				continue;
 			}
 			
 			// SHL  REG_INDEX, REG_2_INDEX
@@ -499,6 +500,7 @@ public class FL516CPU {
 			// reg1 = reg1 << reg2 (or IV)
 			if (opcode == SHL || opcode == SHLI) {
 				REGS[opr1] <<= (opcode == SHLI ? opr2 : REGS[opr2]);
+				continue;
 			}
 			
 			// NOT REG_INDEX
@@ -558,7 +560,7 @@ public class FL516CPU {
 	
 	@SuppressWarnings("resource")
 	private static void printMemory(boolean hex) {
-		System.out.println("First 512 bytes of the program");
+		System.out.println("First 512 bytes of the program (CPU)");
 		for (int i = 0; i < 512; i++) {
 			if (i % 16 == 0) System.out.println();
 			
@@ -568,14 +570,10 @@ public class FL516CPU {
 			std.printf(hex ? "%02X " : "%06d ", MEMORY[RAM][i]);
 		}
 		System.out.println();
-		System.out.println("Last 128 bytes of the program");
-		for (int i = MEMORY[0].length - 128; i < MEMORY[0].length; i++) {
+		System.out.println("\nFirst 512 bytes of the VRAM (VPS)");
+		for (int i = 0; i < 512; i++) {
 			if (i % 16 == 0) System.out.println();
-			
-			boolean is_program = i < ROM.length;
-			var std = is_program ? System.err : System.out;
-			
-			std.printf(hex ? "%02X " : "%06d ", MEMORY[RAM][i]);
+			System.out.printf(hex ? "%02X " : "%06d ", MEMORY[VRAM][i]);
 		}
 		System.out.println();
 	}

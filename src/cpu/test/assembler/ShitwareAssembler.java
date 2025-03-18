@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Set;
 import static cpu.test.assembler.OpcodeInfo.*;
 import static cpu.test.assembler.SyntaxError.*;
+
+import cpu.test.FL516CPU;
 import cpu.test.assembler.coms.DataSectionResolver;
 import cpu.test.assembler.coms.InstructionsResolver;
 
@@ -212,7 +214,7 @@ public class ShitwareAssembler {
 		}
 	}
 	
-	public static void main(String... args) {
+	public static void main(String... args) throws InterruptedException {
         if (args.length < 1) {
             System.err.println("Usage: java swasm <input.asm>");
             System.exit(1);
@@ -245,5 +247,6 @@ public class ShitwareAssembler {
         } catch (IOException e) {
             System.err.println("FileError: " + e.getMessage());
         }
+        FL516CPU.main(new String[] { outputFile });
     }
 }
