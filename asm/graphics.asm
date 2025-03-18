@@ -41,8 +41,7 @@ hlt
     mov     r5, r2 ; r5 = r2
     shr     r5, r3 ; r5 >> byte_index
     lmb     r6, r4 ; r6 = *r4
-    or      r6, r5 ; merge r5 with the calculated shit??
-    
+    or      r6, r5 ; merge r6 with the calculated shit??
 
 
 .bitmask_gen
