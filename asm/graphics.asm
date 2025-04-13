@@ -1,7 +1,7 @@
 @data
-    screen_width      .uint8   320 ; 320 x 240 (240p 4 : 3)
-    screen_height     .uint8   240
-    vram_working_ptr  .uint16  0
+    khai_bao_du_lieu  .cstr    "THIS IS DATA, WHAT THE FUCK AM I DOING WITH MY LIFE RAHHHH\0"
+    full_word         .hword   16 ; 16bit
+    half_word          .byte    8  ; "half" native word
 @text
 ; start program
 call    .test_color

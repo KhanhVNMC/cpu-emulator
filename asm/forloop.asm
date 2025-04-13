@@ -5,7 +5,7 @@ jmp .entry
 .entry
     ldi     r0, 0
     ldi     r1, 100
-    jmp     .loop
+    call    .loop
 
 .loop
     cmp     r0, r1 ; if (r0 >= r1) break;
